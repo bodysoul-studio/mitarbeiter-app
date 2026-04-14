@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Employees ──────────────────────────────────────────────────
+
+model Employee {
+  id        String   @id @default(uuid())
+  name      String
+  pin       String
+  roleId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role            Role             @relation(fields: [roleId], references: [id])
+  timeRecords     TimeRecord[]
+  completedItems  CompletedItem[]
+  completedTasks  CompletedTask[]
+  completedSkills CompletedSkill[]
+  shiftAssignments ShiftAssignment[]
+  swapsOffered     ShiftSwapRequest[] @relation("SwapOffered")
+  swapsAccepted    ShiftSwapRequest[] @relation("SwapAccepted")
+
+  @@map("employees")
+}
+
+// ─── Admin Users ───────────────────────────────────────────────
+
+model AdminUser {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@map("admin_users")
+}
+
+// ─── Roles ─────────────────────────────────────────────────────
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+
+  employees        Employee[]
+  checklists       Checklist[]
+  shiftAssignments ShiftAssignment[]
+  shiftRules       ShiftRule[]
+
+  @@map("roles")
+}
+
+// ─── Checklists ────────────────────────────────────────────────
+
+model Checklist {
+  id        String   @id @default(uuid())
+  title     String
+  roleId    String
+  startTime String
+  endTime   String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role  Role            @relation(fields: [roleId], references: [id])
+  items ChecklistItem[]
+
+  @@index([roleId])
+  @@map("checklists")
+}
+
+// ─── Checklist Items ───────────────────────────────────────────
+
+model ChecklistItem {
+  id            String   @id @default(uuid())
+  checklistId   String
+  title         String
+  description   String?
+  requiresPhoto Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  checklist      Checklist       @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  completedItems CompletedItem[]
+
+  @@index([checklistId])
+  @@map("checklist_items")
+}
+
+// ─── Completed Items ───────────────────────────────────────────
+
+model CompletedItem {
+  id              String   @id @default(uuid())
+  checklistItemId String
+  employeeId      String
+  date            String
+  photoUrl        String?
+  completedAt     DateTime @default(now())
+
+  checklistItem ChecklistItem @relation(fields: [checklistItemId], references: [id], onDelete: Cascade)
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+
+  @@unique([checklistItemId, employeeId, date])
+  @@index([employeeId, date])
+  @@map("completed_items")
+}
+
+// ─── Daily Tasks ───────────────────────────────────────────────
+
+model DailyTask {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  date        String
+  roleId      String?
+  priority    String   @default("normal")
+  createdAt   DateTime @default(now())
+
+  completedTasks CompletedTask[]
+
+  @@index([date])
+  @@map("daily_tasks")
+}
+
+// ─── Completed Daily Tasks ─────────────────────────────────────
+
+model CompletedTask {
+  id          String   @id @default(uuid())
+  taskId      String
+  employeeId  String
+  completedAt DateTime @default(now())
+
+  task     DailyTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  employee Employee  @relation(fields: [employeeId], references: [id])
+
+  @@unique([taskId, employeeId])
+  @@map("completed_tasks")
+}
+
+// ─── Time Records ──────────────────────────────────────────────
+
+model TimeRecord {
+  id         String    @id @default(uuid())
+  employeeId String
+  date       String
+  clockIn    DateTime
+  clockOut   DateTime?
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  employee Employee      @relation(fields: [employeeId], references: [id])
+  pauses   PauseRecord[]
+
+  @@index([employeeId, date])
+  @@map("time_records")
+}
+
+// ─── Pause Records ─────────────────────────────────────────────
+
+model PauseRecord {
+  id           String    @id @default(uuid())
+  timeRecordId String
+  pauseStart   DateTime
+  pauseEnd     DateTime?
+  createdAt    DateTime  @default(now())
+
+  timeRecord TimeRecord @relation(fields: [timeRecordId], references: [id], onDelete: Cascade)
+
+  @@index([timeRecordId])
+  @@map("pause_records")
+}
+
+// ─── Shift Templates ───────────────────────────────────────────
+
+model ShiftTemplate {
+  id           String   @id @default(uuid())
+  name         String
+  defaultStart String
+  defaultEnd   String
+  color        String   @default("#3b82f6")
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  assignments ShiftAssignment[]
+
+  @@map("shift_templates")
+}
+
+// ─── Shift Assignments ─────────────────────────────────────────
+
+model ShiftAssignment {
+  id              String   @id @default(uuid())
+  employeeId      String
+  date            String
+  shiftTemplateId String?
+  startTime       String
+  endTime         String
+  roleId          String
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employee      Employee         @relation(fields: [employeeId], references: [id])
+  shiftTemplate ShiftTemplate?   @relation(fields: [shiftTemplateId], references: [id])
+  role          Role             @relation(fields: [roleId], references: [id])
+  swapRequests  ShiftSwapRequest[]
+
+  @@index([employeeId, date])
+  @@index([date])
+  @@map("shift_assignments")
+}
+
+// ─── Shift Swap Requests ───────────────────────────────────────
+
+model ShiftSwapRequest {
+  id                   String    @id @default(uuid())
+  shiftAssignmentId    String
+  offeredByEmployeeId  String
+  acceptedByEmployeeId String?
+  status               String    @default("open")
+  createdAt            DateTime  @default(now())
+  acceptedAt           DateTime?
+
+  shiftAssignment ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id], onDelete: Cascade)
+  offeredBy       Employee        @relation("SwapOffered", fields: [offeredByEmployeeId], references: [id])
+  acceptedBy      Employee?       @relation("SwapAccepted", fields: [acceptedByEmployeeId], references: [id])
+
+  @@map("shift_swap_requests")
+}
+
+// ─── Skills (Fähigkeiten) ──────────────────────────────────────
+
+model Skill {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  category    String   @default("Allgemein")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  completedSkills CompletedSkill[]
+
+  @@map("skills")
+}
+
+model CompletedSkill {
+  id          String   @id @default(uuid())
+  skillId     String
+  employeeId  String
+  completedAt DateTime @default(now())
+
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@unique([skillId, employeeId])
+  @@map("completed_skills")
+}
+
+// ─── Emergency Guides ──────────────────────────────────────────
+
+model EmergencyGuide {
+  id          String   @id @default(uuid())
+  title       String
+  solution    String
+  category    String   @default("Allgemein")
+  mediaUrls   String   @default("[]")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("emergency_guides")
+}
+
+// ─── Shift Rules (Vorlauf/Nachlauf pro Rolle) ─────────────────
+
+model ShiftRule {
+  id           String @id @default(uuid())
+  name         String @default("")
+  roleId       String
+  leadMinutes  Int    @default(30)
+  lagMinutes   Int    @default(30)
+  minStaff     Int    @default(1)
+  windowStart  String @default("00:00")
+  windowEnd    String @default("23:59")
+
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@map("shift_rules")
+}
+
+// ─── App Config ────────────────────────────────────────────────
+
+model AppConfig {
+  key   String @id
+  value String
+
+  @@map("app_config")
+}
