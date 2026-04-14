@@ -1,11 +1,13 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === "production") {
-  throw new Error("JWT_SECRET muss in Produktion gesetzt sein!");
+function getSecret() {
+  const jwt = process.env.JWT_SECRET;
+  if (!jwt && process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET muss in Produktion gesetzt sein!");
+  }
+  return new TextEncoder().encode(jwt || "dev-only-secret-not-for-production");
 }
-const secret = new TextEncoder().encode(JWT_SECRET || "dev-only-secret-not-for-production");
 
 export type TokenPayload = {
   sub: string;
@@ -19,12 +21,12 @@ export async function createToken(payload: TokenPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("2h")
     .setIssuedAt()
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export async function verifyToken(token: string): Promise<TokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getSecret());
     return payload as unknown as TokenPayload;
   } catch {
     return null;
