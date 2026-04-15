@@ -11,6 +11,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV DATABASE_URL="file:./dev.db"
 RUN npx prisma generate
 RUN npm run build
 # Create a template database with all migrations applied
