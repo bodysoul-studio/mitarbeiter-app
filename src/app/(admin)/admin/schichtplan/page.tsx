@@ -109,21 +109,19 @@ export default function SchichtplanPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const ws = formatDate(weekStart);
-    const [empRes, assRes, tplRes, roleRes] = await Promise.all([
+    const [empRes, assRes, roleRes] = await Promise.all([
       fetch("/api/admin/employees"),
       fetch(`/api/admin/shift-assignments?weekStart=${ws}`),
-      fetch("/api/admin/shift-templates"),
       fetch("/api/admin/roles"),
     ]);
-    const [empData, assData, tplData, roleData] = await Promise.all([
+    const [empData, assData, roleData] = await Promise.all([
       empRes.json(),
       assRes.json(),
-      tplRes.json(),
       roleRes.json(),
     ]);
     setEmployees(empData);
     setAssignments(assData);
-    setTemplates(tplData);
+    setTemplates([]);
     setRoles(roleData);
     setLoading(false);
   }, [weekStart]);
