@@ -11,13 +11,14 @@ datasource db {
 // ─── Employees ──────────────────────────────────────────────────
 
 model Employee {
-  id        String   @id @default(uuid())
-  name      String
-  pin       String
-  roleId    String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(uuid())
+  name           String
+  pin            String
+  roleId         String
+  additionalRoles String  @default("[]")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   role            Role             @relation(fields: [roleId], references: [id])
   timeRecords     TimeRecord[]

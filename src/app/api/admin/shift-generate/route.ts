@@ -149,9 +149,10 @@ export async function POST(req: NextRequest) {
           ? "frueh"
           : "spaet";
 
-      // Find employees with this role who are scheduled for this day+shiftType
+      // Find employees with this role (primary or additional) who are scheduled for this day+shiftType
       const roleEmployees = employees.filter((e) => {
-        if (e.roleId !== rule.roleId) return false;
+        const allRoleIds = [e.roleId, ...JSON.parse(e.additionalRoles || "[]")];
+        if (!allRoleIds.includes(rule.roleId)) return false;
         const schedule = e.weeklySchedule.find((s) => s.weekday === dayOfWeek);
         if (!schedule) return false;
         // "ganztag" matches everything, otherwise match exactly
@@ -161,7 +162,10 @@ export async function POST(req: NextRequest) {
       // Fallback: if no scheduled employees, try any employee with this role
       const candidateEmployees = roleEmployees.length > 0
         ? roleEmployees
-        : employees.filter((e) => e.roleId === rule.roleId);
+        : employees.filter((e) => {
+            const allRoleIds = [e.roleId, ...JSON.parse(e.additionalRoles || "[]")];
+            return allRoleIds.includes(rule.roleId);
+          });
       if (candidateEmployees.length === 0) continue;
 
       // How many already assigned for this rule's role + date?

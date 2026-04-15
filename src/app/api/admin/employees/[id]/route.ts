@@ -8,6 +8,7 @@ const updateEmployeeSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   pin: z.string().min(4).max(6).optional(),
   roleId: z.string().min(1).optional(),
+  additionalRoles: z.string().optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -32,6 +33,7 @@ export async function PUT(
   const data: Record<string, unknown> = {};
   if (body.name !== undefined) data.name = body.name;
   if (body.roleId !== undefined) data.roleId = body.roleId;
+  if (body.additionalRoles !== undefined) data.additionalRoles = body.additionalRoles;
   if (body.isActive !== undefined) data.isActive = body.isActive;
   if (body.pin) data.pin = hashSync(body.pin, 10);
 
