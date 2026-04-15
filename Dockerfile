@@ -13,6 +13,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
 RUN npm run build
+# Create a template database with all migrations applied
+RUN npx prisma migrate deploy
 
 # Production
 FROM base AS runner
@@ -26,12 +28,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
+COPY --from=builder /app/prisma/dev.db ./prisma/template.db
 
 # Create directories for persistent data
 RUN mkdir -p /data /app/public/uploads
@@ -44,4 +41,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/data/prod.db"
 
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
+# At startup: if no DB exists, copy template; then start server
+CMD ["sh", "-c", "if [ ! -f /data/prod.db ]; then cp /app/prisma/template.db /data/prod.db; echo 'Database initialized'; fi && node server.js"]
