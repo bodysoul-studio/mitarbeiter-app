@@ -124,9 +124,11 @@ export async function POST(req: NextRequest) {
     if (dayOffers.length === 0) continue;
 
     for (const rule of rules) {
-      // Find courses within this rule's time window
-      const range = getWindowCourseRange(dayOffers, rule.windowStart, rule.windowEnd);
-      if (!range) continue; // No courses in this window
+      // If allDay: use all courses of the day; otherwise filter by time window
+      const range = rule.allDay
+        ? getWindowCourseRange(dayOffers, "00:00", "23:59")
+        : getWindowCourseRange(dayOffers, rule.windowStart, rule.windowEnd);
+      if (!range) continue; // No courses
 
       const shiftStart = adjustTime(range.firstStart, -rule.leadMinutes);
       const shiftEnd = adjustTime(range.lastEnd, rule.lagMinutes);

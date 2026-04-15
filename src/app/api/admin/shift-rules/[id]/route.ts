@@ -12,7 +12,7 @@ export async function PUT(
   }
 
   const { id } = await params;
-  const { name, roleId, leadMinutes, lagMinutes, minStaff, windowStart, windowEnd } = await req.json();
+  const { name, roleId, leadMinutes, lagMinutes, minStaff, windowStart, windowEnd, allDay } = await req.json();
 
   const rule = await prisma.shiftRule.update({
     where: { id },
@@ -24,6 +24,7 @@ export async function PUT(
       minStaff: minStaff ?? undefined,
       windowStart: windowStart ?? undefined,
       windowEnd: windowEnd ?? undefined,
+      allDay: allDay ?? undefined,
     },
     include: { role: { select: { id: true, name: true, color: true } } },
   });

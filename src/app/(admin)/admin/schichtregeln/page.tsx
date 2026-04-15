@@ -12,6 +12,7 @@ type Rule = {
   minStaff: number;
   windowStart: string;
   windowEnd: string;
+  allDay: boolean;
   role: Role;
 };
 
@@ -28,6 +29,7 @@ export default function SchichtregelnPage() {
   const [minStaff, setMinStaff] = useState(1);
   const [windowStart, setWindowStart] = useState("00:00");
   const [windowEnd, setWindowEnd] = useState("23:59");
+  const [allDay, setAllDay] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function SchichtregelnPage() {
     setMinStaff(1);
     setWindowStart("00:00");
     setWindowEnd("23:59");
+    setAllDay(false);
   }
 
   function startEdit(rule: Rule) {
@@ -61,6 +64,7 @@ export default function SchichtregelnPage() {
     setMinStaff(rule.minStaff);
     setWindowStart(rule.windowStart);
     setWindowEnd(rule.windowEnd);
+    setAllDay(rule.allDay);
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -68,7 +72,7 @@ export default function SchichtregelnPage() {
     if (!roleId) return;
     setSaving(true);
 
-    const body = { name, roleId, leadMinutes, lagMinutes, minStaff, windowStart, windowEnd };
+    const body = { name, roleId, leadMinutes, lagMinutes, minStaff, windowStart, windowEnd, allDay };
 
     if (editId) {
       const res = await fetch(`/api/admin/shift-rules/${editId}`, {
@@ -156,6 +160,21 @@ export default function SchichtregelnPage() {
               className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
             />
           </div>
+          <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allDay}
+                onChange={(e) => setAllDay(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500"
+              />
+              <span className="text-sm text-white">Ganztag</span>
+            </label>
+            <span className="text-xs text-slate-500">
+              (Schicht geht vom ersten bis zum letzten Kurs des Tages — Zeitfenster wird ignoriert)
+            </span>
+          </div>
+          {!allDay && (<>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Kurse ab (Zeitfenster)</label>
             <input
@@ -174,12 +193,12 @@ export default function SchichtregelnPage() {
               className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
             />
           </div>
+          </>)}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Vorlauf (Min.)</label>
               <input
                 type="number"
-                min={0}
                 value={leadMinutes}
                 onChange={(e) => setLeadMinutes(parseInt(e.target.value) || 0)}
                 className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
@@ -189,7 +208,6 @@ export default function SchichtregelnPage() {
               <label className="block text-xs text-slate-400 mb-1">Nachlauf (Min.)</label>
               <input
                 type="number"
-                min={0}
                 value={lagMinutes}
                 onChange={(e) => setLagMinutes(parseInt(e.target.value) || 0)}
                 className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
@@ -236,7 +254,7 @@ export default function SchichtregelnPage() {
                     {rule.name || rule.role.name}
                   </p>
                   <p className="text-sm text-slate-400">
-                    {rule.role.name} · Kurse {rule.windowStart}–{rule.windowEnd}
+                    {rule.role.name} · {rule.allDay ? "Ganztag" : `Kurse ${rule.windowStart}–${rule.windowEnd}`}
                   </p>
                   <p className="text-xs text-slate-500">
                     {rule.leadMinutes} Min. vorher → Kurse → {rule.lagMinutes} Min. nachher · {rule.minStaff}x Besetzung

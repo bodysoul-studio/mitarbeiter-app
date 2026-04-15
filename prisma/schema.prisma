@@ -286,14 +286,15 @@ model EmergencyGuide {
 // ─── Shift Rules (Vorlauf/Nachlauf pro Rolle) ─────────────────
 
 model ShiftRule {
-  id           String @id @default(uuid())
-  name         String @default("")
+  id           String  @id @default(uuid())
+  name         String  @default("")
   roleId       String
-  leadMinutes  Int    @default(30)
-  lagMinutes   Int    @default(30)
-  minStaff     Int    @default(1)
-  windowStart  String @default("00:00")
-  windowEnd    String @default("23:59")
+  leadMinutes  Int     @default(30)
+  lagMinutes   Int     @default(30)
+  minStaff     Int     @default(1)
+  windowStart  String  @default("00:00")
+  windowEnd    String  @default("23:59")
+  allDay       Boolean @default(false)
 
   role Role @relation(fields: [roleId], references: [id])
 
