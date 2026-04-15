@@ -26,6 +26,7 @@ type ShiftAssignment = {
   id: string;
   employeeId: string;
   date: string;
+  label: string | null;
   startTime: string;
   endTime: string;
   notes: string | null;
@@ -43,6 +44,7 @@ type ModalState = {
   date: string;
   assignmentId?: string;
   templateId: string;
+  label: string;
   startTime: string;
   endTime: string;
   roleId: string;
@@ -143,6 +145,7 @@ export default function SchichtplanPage() {
       employeeId: employees[0]?.id || "",
       date,
       templateId: "",
+      label: "",
       startTime: "",
       endTime: "",
       roleId: "",
@@ -158,6 +161,7 @@ export default function SchichtplanPage() {
       date: assignment.date,
       assignmentId: assignment.id,
       templateId: assignment.shiftTemplateId || "",
+      label: assignment.label || "",
       startTime: assignment.startTime,
       endTime: assignment.endTime,
       roleId: assignment.roleId || "",
@@ -182,6 +186,7 @@ export default function SchichtplanPage() {
     const body = {
       employeeId: modal.employeeId,
       date: modal.date,
+      label: modal.label || null,
       startTime: modal.startTime,
       endTime: modal.endTime,
       shiftTemplateId: modal.templateId || null,
@@ -341,7 +346,7 @@ export default function SchichtplanPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-white">
-                            {shift.shiftTemplate?.name || shift.role?.name || "Schicht"}
+                            {shift.label || shift.shiftTemplate?.name || shift.role?.name || "Schicht"}
                           </p>
                           <p className="text-xs text-slate-400">
                             {shift.startTime} – {shift.endTime}
@@ -407,6 +412,17 @@ export default function SchichtplanPage() {
                 <p className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm">
                   {modal.date}
                 </p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Bezeichnung</label>
+                <input
+                  type="text"
+                  placeholder="z.B. Check-In Morgens, Check-In Wochenende"
+                  value={modal.label}
+                  onChange={(e) => setModal({ ...modal, label: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                />
               </div>
 
               <div>

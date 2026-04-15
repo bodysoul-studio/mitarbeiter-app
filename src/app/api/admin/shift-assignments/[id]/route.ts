@@ -6,6 +6,7 @@ import { z } from "zod";
 const updateShiftAssignmentSchema = z.object({
   employeeId: z.string().min(1).optional(),
   date: z.string().min(1).optional(),
+  label: z.string().nullable().optional(),
   shiftTemplateId: z.string().nullable().optional(),
   startTime: z.string().min(1).optional(),
   endTime: z.string().min(1).optional(),
@@ -36,6 +37,7 @@ export async function PUT(
     data: {
       ...(body.employeeId !== undefined && { employeeId: body.employeeId }),
       ...(body.date !== undefined && { date: body.date }),
+      ...(body.label !== undefined && { label: body.label || null }),
       ...(body.shiftTemplateId !== undefined && { shiftTemplateId: body.shiftTemplateId || null }),
       ...(body.startTime !== undefined && { startTime: body.startTime }),
       ...(body.endTime !== undefined && { endTime: body.endTime }),

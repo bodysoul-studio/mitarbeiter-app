@@ -204,6 +204,7 @@ model ShiftAssignment {
   employeeId      String
   date            String
   shiftTemplateId String?
+  label           String?
   startTime       String
   endTime         String
   roleId          String

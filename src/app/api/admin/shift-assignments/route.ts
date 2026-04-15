@@ -6,11 +6,12 @@ import { z } from "zod";
 const createShiftAssignmentSchema = z.object({
   employeeId: z.string().min(1),
   date: z.string().min(1),
+  label: z.string().optional().nullable(),
   startTime: z.string().min(1),
   endTime: z.string().min(1),
   roleId: z.string().min(1),
-  shiftTemplateId: z.string().optional(),
-  notes: z.string().optional(),
+  shiftTemplateId: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 });
 
 export async function GET(req: NextRequest) {
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
     data: {
       employeeId: body.employeeId,
       date: body.date,
+      label: body.label || null,
       shiftTemplateId: body.shiftTemplateId || null,
       startTime: body.startTime,
       endTime: body.endTime,

@@ -169,6 +169,7 @@ export async function POST(req: NextRequest) {
           data: {
             employeeId: emp.id,
             date,
+            label: rule.name || rule.role.name,
             startTime: shiftStart,
             endTime: shiftEnd,
             roleId: rule.roleId,
