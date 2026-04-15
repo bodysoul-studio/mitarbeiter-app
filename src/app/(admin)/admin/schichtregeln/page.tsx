@@ -341,9 +341,9 @@ export default function SchichtregelnPage() {
                   <p className="text-sm text-slate-400">
                     {rule.role.name} · {rule.allDay ? "Ganztag" : `Kurse ${rule.windowStart}–${rule.windowEnd}`}
                     {" · "}
-                    {rule.weekdays === "0,1,2,3,4,5,6"
+                    {(!rule.weekdays || rule.weekdays === "0,1,2,3,4,5,6")
                       ? "Täglich"
-                      : rule.weekdays.split(",").map(Number).map((d) => DAY_LABELS.find((l) => l.value === d)?.short).join(" ")}
+                      : (rule.weekdays || "").split(",").map(Number).map((d) => DAY_LABELS.find((l) => l.value === d)?.short).join(" ")}
                   </p>
                   <p className="text-xs text-slate-500">
                     {rule.leadMinutes} Min. vorher → Kurse → {rule.lagMinutes} Min. nachher · {rule.minStaff}x Besetzung
