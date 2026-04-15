@@ -12,6 +12,7 @@ const navItems = [
   { href: "/admin/rollen", label: "Rollen", icon: "🏷" },
   { href: "/admin/zeiten", label: "Zeiten", icon: "🕐" },
   { href: "/admin/faehigkeiten", label: "Fähigkeiten", icon: "💡" },
+  { href: "/admin/mitarbeiter-planung", label: "Wochenplan", icon: "🗓" },
   { href: "/admin/schichtplan", label: "Schichtplan", icon: "📅" },
   { href: "/admin/schichtregeln", label: "Schichtregeln", icon: "⚙️" },
   { href: "/admin/notfaelle", label: "Notfälle", icon: "⚠️" },

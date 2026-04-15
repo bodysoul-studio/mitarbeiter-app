@@ -24,9 +24,10 @@ model Employee {
   completedItems  CompletedItem[]
   completedTasks  CompletedTask[]
   completedSkills CompletedSkill[]
-  shiftAssignments ShiftAssignment[]
-  swapsOffered     ShiftSwapRequest[] @relation("SwapOffered")
-  swapsAccepted    ShiftSwapRequest[] @relation("SwapAccepted")
+  shiftAssignments  ShiftAssignment[]
+  swapsOffered      ShiftSwapRequest[] @relation("SwapOffered")
+  swapsAccepted     ShiftSwapRequest[] @relation("SwapAccepted")
+  weeklySchedule    EmployeeSchedule[]
 
   @@map("employees")
 }
@@ -179,6 +180,20 @@ model PauseRecord {
 
   @@index([timeRecordId])
   @@map("pause_records")
+}
+
+// ─── Employee Weekly Schedule (feste Wochenmuster) ─────────────
+
+model EmployeeSchedule {
+  id         String @id @default(uuid())
+  employeeId String
+  weekday    Int
+  shiftType  String
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, weekday])
+  @@map("employee_schedules")
 }
 
 // ─── Shift Templates ───────────────────────────────────────────

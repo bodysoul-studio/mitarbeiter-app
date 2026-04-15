@@ -111,9 +111,10 @@ export async function POST(req: NextRequest) {
     where: { date: { in: dates } },
   });
 
-  // 4. Load active employees
+  // 4. Load active employees with weekly schedules
   const employees = await prisma.employee.findMany({
     where: { isActive: true },
+    include: { weeklySchedule: true },
   });
 
   // 5. Generate shifts per day, per rule
@@ -141,9 +142,27 @@ export async function POST(req: NextRequest) {
       const shiftStart = adjustTime(range.firstStart, -rule.leadMinutes);
       const shiftEnd = adjustTime(range.lastEnd, rule.lagMinutes);
 
-      // Find employees with this role
-      const roleEmployees = employees.filter((e) => e.roleId === rule.roleId);
-      if (roleEmployees.length === 0) continue;
+      // Determine which shiftType matches this rule
+      const ruleShiftType = rule.allDay
+        ? "ganztag"
+        : rule.windowEnd <= "13:00"
+          ? "frueh"
+          : "spaet";
+
+      // Find employees with this role who are scheduled for this day+shiftType
+      const roleEmployees = employees.filter((e) => {
+        if (e.roleId !== rule.roleId) return false;
+        const schedule = e.weeklySchedule.find((s) => s.weekday === dayOfWeek);
+        if (!schedule) return false;
+        // "ganztag" matches everything, otherwise match exactly
+        return schedule.shiftType === ruleShiftType || schedule.shiftType === "ganztag";
+      });
+
+      // Fallback: if no scheduled employees, try any employee with this role
+      const candidateEmployees = roleEmployees.length > 0
+        ? roleEmployees
+        : employees.filter((e) => e.roleId === rule.roleId);
+      if (candidateEmployees.length === 0) continue;
 
       // How many already assigned for this rule's role + date?
       const existingCount = existingAssignments.filter(
@@ -153,8 +172,8 @@ export async function POST(req: NextRequest) {
 
       const needed = Math.max(0, rule.minStaff - existingCount);
 
-      // Round-robin: pick employees with fewest assignments this week
-      const employeeCounts = roleEmployees.map((emp) => ({
+      // Pick employees with fewest assignments this week (prefer scheduled ones)
+      const employeeCounts = candidateEmployees.map((emp) => ({
         emp,
         count: existingAssignments.filter((a) => a.employeeId === emp.id).length,
       }));
