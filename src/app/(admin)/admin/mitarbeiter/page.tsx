@@ -46,10 +46,11 @@ export default function MitarbeiterPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    const safeJson = (r: Response) => r.ok ? r.json() : Promise.resolve([]);
     Promise.all([
-      fetch("/api/admin/employees").then((r) => r.json()),
-      fetch("/api/admin/roles").then((r) => r.json()),
-      fetch("/api/admin/employee-schedules").then((r) => r.json()),
+      fetch("/api/admin/employees").then(safeJson),
+      fetch("/api/admin/roles").then(safeJson),
+      fetch("/api/admin/employee-schedules").then(safeJson),
     ]).then(([emps, rls, scheds]) => {
       setEmployees(emps);
       setRoles(rls);
