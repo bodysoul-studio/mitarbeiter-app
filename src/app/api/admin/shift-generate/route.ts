@@ -159,14 +159,9 @@ export async function POST(req: NextRequest) {
         return schedule.shiftType === ruleShiftType || schedule.shiftType === "ganztag";
       });
 
-      // Fallback: if no scheduled employees, try any employee with this role
-      const candidateEmployees = roleEmployees.length > 0
-        ? roleEmployees
-        : employees.filter((e) => {
-            const allRoleIds = [e.roleId, ...JSON.parse(e.additionalRoles || "[]")];
-            return allRoleIds.includes(rule.roleId);
-          });
-      if (candidateEmployees.length === 0) continue;
+      // Nur geplante Mitarbeiter — kein Fallback
+      if (roleEmployees.length === 0) continue;
+      const candidateEmployees = roleEmployees;
 
       // How many already assigned for this rule's role + date?
       const existingCount = existingAssignments.filter(
