@@ -31,6 +31,7 @@ export default function SchichtregelnPage() {
   const [windowEnd, setWindowEnd] = useState("23:59");
   const [allDay, setAllDay] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("all");
 
   useEffect(() => {
     Promise.all([
@@ -238,8 +239,48 @@ export default function SchichtregelnPage() {
       {rules.length === 0 ? (
         <p className="text-slate-400">Noch keine Regeln definiert.</p>
       ) : (
-        <div className="space-y-2">
-          {rules.map((rule) => (
+        <div>
+          {/* Tabs */}
+          <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
+            <button
+              onClick={() => setActiveTab("all")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === "all"
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+              }`}
+            >
+              Alle ({rules.length})
+            </button>
+            {roles
+              .filter((r) => rules.some((rule) => rule.roleId === r.id))
+              .map((r) => {
+                const count = rules.filter((rule) => rule.roleId === r.id).length;
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => setActiveTab(r.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${
+                      activeTab === r.id
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                    }`}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: r.color || "#6b7280" }}
+                    />
+                    {r.name} ({count})
+                  </button>
+                );
+              })}
+          </div>
+
+          {/* Filtered rules */}
+          <div className="space-y-2">
+          {rules
+            .filter((rule) => activeTab === "all" || rule.roleId === activeTab)
+            .map((rule) => (
             <div
               key={rule.id}
               className="bg-slate-800 border border-slate-700 rounded-lg p-4 flex items-center justify-between"
@@ -277,6 +318,7 @@ export default function SchichtregelnPage() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 
