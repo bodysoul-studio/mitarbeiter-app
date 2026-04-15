@@ -12,6 +12,7 @@ const createShiftRuleSchema = z.object({
   windowStart: z.string().optional(),
   windowEnd: z.string().optional(),
   allDay: z.boolean().optional(),
+  weekdays: z.string().optional(),
 });
 
 export async function GET() {
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
       windowStart: body.windowStart || "00:00",
       windowEnd: body.windowEnd || "23:59",
       allDay: body.allDay ?? false,
+      weekdays: body.weekdays || "0,1,2,3,4,5,6",
     },
     include: { role: { select: { id: true, name: true, color: true } } },
   });

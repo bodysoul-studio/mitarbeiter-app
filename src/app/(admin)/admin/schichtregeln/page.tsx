@@ -13,8 +13,19 @@ type Rule = {
   windowStart: string;
   windowEnd: string;
   allDay: boolean;
+  weekdays: string;
   role: Role;
 };
+
+const DAY_LABELS = [
+  { value: 0, short: "Mo" },
+  { value: 1, short: "Di" },
+  { value: 2, short: "Mi" },
+  { value: 3, short: "Do" },
+  { value: 4, short: "Fr" },
+  { value: 5, short: "Sa" },
+  { value: 6, short: "So" },
+];
 
 export default function SchichtregelnPage() {
   const [rules, setRules] = useState<Rule[]>([]);
@@ -30,6 +41,7 @@ export default function SchichtregelnPage() {
   const [windowStart, setWindowStart] = useState("00:00");
   const [windowEnd, setWindowEnd] = useState("23:59");
   const [allDay, setAllDay] = useState(false);
+  const [weekdays, setWeekdays] = useState("0,1,2,3,4,5,6");
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("all");
 
@@ -54,6 +66,7 @@ export default function SchichtregelnPage() {
     setWindowStart("00:00");
     setWindowEnd("23:59");
     setAllDay(false);
+    setWeekdays("0,1,2,3,4,5,6");
   }
 
   function startEdit(rule: Rule) {
@@ -66,6 +79,15 @@ export default function SchichtregelnPage() {
     setWindowStart(rule.windowStart);
     setWindowEnd(rule.windowEnd);
     setAllDay(rule.allDay);
+    setWeekdays(rule.weekdays || "0,1,2,3,4,5,6");
+  }
+
+  function toggleWeekday(day: number) {
+    const current = weekdays.split(",").map(Number).filter((n) => !isNaN(n));
+    const updated = current.includes(day)
+      ? current.filter((d) => d !== day)
+      : [...current, day].sort();
+    setWeekdays(updated.join(","));
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -73,7 +95,7 @@ export default function SchichtregelnPage() {
     if (!roleId) return;
     setSaving(true);
 
-    const body = { name, roleId, leadMinutes, lagMinutes, minStaff, windowStart, windowEnd, allDay };
+    const body = { name, roleId, leadMinutes, lagMinutes, minStaff, windowStart, windowEnd, allDay, weekdays };
 
     if (editId) {
       const res = await fetch(`/api/admin/shift-rules/${editId}`, {
@@ -174,6 +196,28 @@ export default function SchichtregelnPage() {
             <span className="text-xs text-slate-500">
               (Schicht geht vom ersten bis zum letzten Kurs des Tages — Zeitfenster wird ignoriert)
             </span>
+          </div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <label className="block text-xs text-slate-400 mb-2">Wochentage</label>
+            <div className="flex gap-1.5">
+              {DAY_LABELS.map((day) => {
+                const active = weekdays.split(",").map(Number).includes(day.value);
+                return (
+                  <button
+                    key={day.value}
+                    type="button"
+                    onClick={() => toggleWeekday(day.value)}
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-900 text-slate-500 border border-slate-600"
+                    }`}
+                  >
+                    {day.short}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {!allDay && (<>
           <div>
@@ -296,6 +340,10 @@ export default function SchichtregelnPage() {
                   </p>
                   <p className="text-sm text-slate-400">
                     {rule.role.name} · {rule.allDay ? "Ganztag" : `Kurse ${rule.windowStart}–${rule.windowEnd}`}
+                    {" · "}
+                    {rule.weekdays === "0,1,2,3,4,5,6"
+                      ? "Täglich"
+                      : rule.weekdays.split(",").map(Number).map((d) => DAY_LABELS.find((l) => l.value === d)?.short).join(" ")}
                   </p>
                   <p className="text-xs text-slate-500">
                     {rule.leadMinutes} Min. vorher → Kurse → {rule.lagMinutes} Min. nachher · {rule.minStaff}x Besetzung

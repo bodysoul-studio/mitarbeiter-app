@@ -119,11 +119,19 @@ export async function POST(req: NextRequest) {
   // 5. Generate shifts per day, per rule
   const created: { date: string; name: string; role: string; startTime: string; endTime: string; employee: string }[] = [];
 
-  for (const date of dates) {
+  for (let di = 0; di < dates.length; di++) {
+    const date = dates[di];
     const dayOffers = offersByDate.get(date) || [];
     if (dayOffers.length === 0) continue;
 
+    // Day of week: 0=Mo, 1=Di, ..., 6=So
+    const dayOfWeek = di;
+
     for (const rule of rules) {
+      // Check if rule applies to this weekday
+      const ruleWeekdays = (rule.weekdays || "0,1,2,3,4,5,6").split(",").map(Number);
+      if (!ruleWeekdays.includes(dayOfWeek)) continue;
+
       // If allDay: use all courses of the day; otherwise filter by time window
       const range = rule.allDay
         ? getWindowCourseRange(dayOffers, "00:00", "23:59")
