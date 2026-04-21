@@ -48,5 +48,36 @@ export async function GET(req: NextRequest) {
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
 
-  return NextResponse.json(assignments);
+  // Load colleagues (all other assignments on the same days)
+  const myDates = [...new Set(assignments.map((a) => a.date))];
+  const colleaguesAssignments = myDates.length > 0
+    ? await prisma.shiftAssignment.findMany({
+        where: {
+          date: { in: myDates },
+          employeeId: { not: session.sub },
+        },
+        include: {
+          employee: { select: { id: true, name: true } },
+          role: { select: { id: true, name: true, color: true } },
+        },
+        orderBy: [{ date: "asc" }, { startTime: "asc" }],
+      })
+    : [];
+
+  // Group colleagues by date
+  const colleaguesByDate: Record<string, { id: string; name: string; startTime: string; endTime: string; label: string | null; roleName: string; roleColor: string | null }[]> = {};
+  for (const c of colleaguesAssignments) {
+    if (!colleaguesByDate[c.date]) colleaguesByDate[c.date] = [];
+    colleaguesByDate[c.date].push({
+      id: c.employee.id,
+      name: c.employee.name,
+      startTime: c.startTime,
+      endTime: c.endTime,
+      label: c.label,
+      roleName: c.role?.name || "",
+      roleColor: c.role?.color || null,
+    });
+  }
+
+  return NextResponse.json({ assignments, colleaguesByDate });
 }

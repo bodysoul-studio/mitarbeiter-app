@@ -8,11 +8,22 @@ type ShiftAssignment = {
   startTime: string;
   endTime: string;
   notes: string | null;
+  label?: string | null;
   templateId: string | null;
   roleId: string | null;
   template: { id: string; name: string; color: string } | null;
   role: { id: string; name: string; color: string | null } | null;
   swapOfferId?: string | null;
+};
+
+type Colleague = {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  label: string | null;
+  roleName: string;
+  roleColor: string | null;
 };
 
 type SwapOffer = {
@@ -80,6 +91,7 @@ export function WeekView({
 }) {
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [shifts, setShifts] = useState<ShiftAssignment[]>([]);
+  const [colleaguesByDate, setColleaguesByDate] = useState<Record<string, Colleague[]>>({});
   const [swapOffers, setSwapOffers] = useState<SwapOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -96,14 +108,22 @@ export function WeekView({
         fetch(`/api/shift-assignments/my?weekStart=${ws}`),
         fetch("/api/shift-swaps"),
       ]);
-      const shiftsData = shiftsRes.ok ? await shiftsRes.json() : [];
+      const shiftsRaw = shiftsRes.ok ? await shiftsRes.json() : { assignments: [], colleaguesByDate: {} };
       const swapsData = swapsRes.ok ? await swapsRes.json() : [];
-      setShifts(shiftsData);
+      // Support both old (array) and new ({assignments, colleaguesByDate}) response shapes
+      if (Array.isArray(shiftsRaw)) {
+        setShifts(shiftsRaw);
+        setColleaguesByDate({});
+      } else {
+        setShifts(shiftsRaw.assignments || []);
+        setColleaguesByDate(shiftsRaw.colleaguesByDate || {});
+      }
       setSwapOffers(
         (swapsData as SwapOffer[]).filter((s) => s.offeredBy?.id !== employeeId)
       );
     } catch {
       setShifts([]);
+      setColleaguesByDate({});
       setSwapOffers([]);
     }
     setLoading(false);
@@ -282,6 +302,34 @@ export function WeekView({
                     </div>
                   ) : (
                     <p className="text-slate-500 text-sm mt-1">Frei</p>
+                  )}
+
+                  {/* Colleagues working this day */}
+                  {colleaguesByDate[dateStr] && colleaguesByDate[dateStr].length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-700/50">
+                      <p className="text-xs text-slate-500 mb-2">
+                        {shift ? "Heute mit dir arbeitet:" : "An diesem Tag arbeitet:"}
+                      </p>
+                      <div className="space-y-1.5">
+                        {colleaguesByDate[dateStr].map((c, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: c.roleColor || "#6b7280" }}
+                              />
+                              <span className="text-slate-200 font-medium truncate">{c.name}</span>
+                              <span className="text-slate-500 flex-shrink-0">
+                                {c.label || c.roleName}
+                              </span>
+                            </div>
+                            <span className="text-slate-400 ml-2 flex-shrink-0">
+                              {c.startTime}–{c.endTime}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               );
