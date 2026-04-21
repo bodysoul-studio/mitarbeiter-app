@@ -10,6 +10,7 @@ type EmployeeInfo = {
   roleName: string;
   roleColor: string;
   roleId: string;
+  roles?: { name: string; color: string }[];
 };
 
 type Task = {
@@ -143,12 +144,17 @@ export function EmployeeShell({
         <div className="flex items-center justify-between h-14 px-4 max-w-lg mx-auto">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm text-white">{employeeInfo.name}</span>
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ backgroundColor: employeeInfo.roleColor + "22", color: employeeInfo.roleColor }}
-            >
-              {employeeInfo.roleName}
-            </span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {(employeeInfo.roles && employeeInfo.roles.length > 0 ? employeeInfo.roles : [{ name: employeeInfo.roleName, color: employeeInfo.roleColor }]).map((r, i) => (
+                <span
+                  key={i}
+                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ backgroundColor: r.color + "22", color: r.color }}
+                >
+                  {r.name}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Aufgaben-Dropdown Trigger */}
