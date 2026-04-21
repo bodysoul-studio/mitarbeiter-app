@@ -11,6 +11,15 @@ export const metadata: Metadata = {
   title: "Body & Soul Mitarbeiter",
   description: "Schichtbasierte Checklisten & Zeiterfassung",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icons/favicon-32.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Mitarbeiter",
+  },
 };
 
 export const viewport: Viewport = {
