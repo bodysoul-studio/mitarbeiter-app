@@ -304,14 +304,34 @@ export function WeekView({
                     <p className="text-slate-500 text-sm mt-1">Frei</p>
                   )}
 
-                  {/* Colleagues working this day */}
-                  {colleaguesByDate[dateStr] && colleaguesByDate[dateStr].length > 0 && (
+                  {/* Team working this day (including self) */}
+                  {((shift) || (colleaguesByDate[dateStr] && colleaguesByDate[dateStr].length > 0)) && (
                     <div className="mt-3 pt-3 border-t border-slate-700/50">
-                      <p className="text-xs text-slate-500 mb-2">
-                        {shift ? "Heute mit dir arbeitet:" : "An diesem Tag arbeitet:"}
-                      </p>
+                      <p className="text-xs text-slate-500 mb-2">Team an diesem Tag:</p>
                       <div className="space-y-1.5">
-                        {colleaguesByDate[dateStr].map((c, idx) => (
+                        {/* Self first */}
+                        {shift && (
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: shift.role?.color || "#3b82f6" }}
+                              />
+                              <span className="text-blue-400 font-semibold truncate">
+                                Du ({employeeName})
+                              </span>
+                              <span className="text-slate-500 flex-shrink-0">
+                                {shift.label || shift.role?.name}
+                              </span>
+                            </div>
+                            <span className="text-slate-300 font-medium ml-2 flex-shrink-0">
+                              {shift.startTime}–{shift.endTime}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Colleagues */}
+                        {(colleaguesByDate[dateStr] || []).map((c, idx) => (
                           <div key={idx} className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-2 min-w-0">
                               <span
