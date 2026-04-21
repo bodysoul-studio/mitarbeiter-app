@@ -24,6 +24,8 @@ export type ChecklistWithItems = {
   startTime: string;
   endTime: string;
   sortOrder: number;
+  roleName?: string;
+  roleColor?: string | null;
   items: {
     id: string;
     title: string;
@@ -32,6 +34,7 @@ export type ChecklistWithItems = {
     sortOrder: number;
     completed?: boolean;
     photoUrl?: string | null;
+    completedByName?: string | null;
   }[];
 };
 

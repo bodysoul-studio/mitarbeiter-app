@@ -29,6 +29,7 @@ export default async function SchichtPage() {
       isActive: true,
     },
     include: {
+      role: { select: { id: true, name: true, color: true } },
       items: {
         orderBy: { sortOrder: "asc" },
       },
@@ -36,16 +37,32 @@ export default async function SchichtPage() {
     orderBy: { sortOrder: "asc" },
   });
 
+  // Load ALL completions for today (from anyone) for the items in these checklists
+  const itemIds = checklists.flatMap((cl) => cl.items.map((i) => i.id));
   const completedItems = await prisma.completedItem.findMany({
     where: {
-      employeeId: employee.id,
+      checklistItemId: { in: itemIds },
       date: today,
     },
+    include: {
+      employee: { select: { id: true, name: true } },
+    },
+    orderBy: { completedAt: "asc" },
   });
 
-  const completedMap: Record<string, { photoUrl: string | null }> = {};
+  // Map: itemId → { photoUrl, completedByName }
+  const completedMap: Record<string, { photoUrl: string | null; completedByName: string }> = {};
   for (const item of completedItems) {
-    completedMap[item.checklistItemId] = { photoUrl: item.photoUrl };
+    // First completion wins for the display
+    if (!completedMap[item.checklistItemId]) {
+      completedMap[item.checklistItemId] = {
+        photoUrl: item.photoUrl,
+        completedByName: item.employee.name,
+      };
+    } else if (item.photoUrl && !completedMap[item.checklistItemId].photoUrl) {
+      // Upgrade with photo if later completion has one
+      completedMap[item.checklistItemId].photoUrl = item.photoUrl;
+    }
   }
 
   const checklistsData = checklists.map((cl) => ({
@@ -54,6 +71,8 @@ export default async function SchichtPage() {
     startTime: cl.startTime,
     endTime: cl.endTime,
     sortOrder: cl.sortOrder,
+    roleName: cl.role?.name || "",
+    roleColor: cl.role?.color || null,
     items: cl.items.map((item) => ({
       id: item.id,
       title: item.title,
@@ -62,6 +81,7 @@ export default async function SchichtPage() {
       sortOrder: item.sortOrder,
       completed: !!completedMap[item.id],
       photoUrl: completedMap[item.id]?.photoUrl ?? null,
+      completedByName: completedMap[item.id]?.completedByName ?? null,
     })),
   }));
 
@@ -69,6 +89,7 @@ export default async function SchichtPage() {
     <ShiftView
       checklists={checklistsData}
       employeeId={employee.id}
+      employeeName={employee.name}
       today={today}
     />
   );

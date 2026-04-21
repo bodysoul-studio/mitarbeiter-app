@@ -6,8 +6,19 @@ import type { ChecklistWithItems } from "@/lib/time-utils";
 type Props = {
   checklists: ChecklistWithItems[];
   employeeId: string;
+  employeeName: string;
   today: string;
 };
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 function getCurrentTime() {
   return new Date().toLocaleTimeString("de-DE", {
@@ -17,7 +28,7 @@ function getCurrentTime() {
   });
 }
 
-export function ShiftView({ checklists: initial, employeeId, today }: Props) {
+export function ShiftView({ checklists: initial, employeeId, employeeName, today }: Props) {
   const [checklists, setChecklists] = useState(initial);
   const [currentTime, setCurrentTime] = useState(getCurrentTime);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -58,7 +69,14 @@ export function ShiftView({ checklists: initial, employeeId, today }: Props) {
             ? {
                 ...cl,
                 items: cl.items.map((it) =>
-                  it.id === itemId ? { ...it, completed: !completed, photoUrl: photoUrl ?? it.photoUrl } : it
+                  it.id === itemId
+                    ? {
+                        ...it,
+                        completed: !completed,
+                        photoUrl: photoUrl ?? it.photoUrl,
+                        completedByName: !completed ? employeeName : null,
+                      }
+                    : it
                 ),
               }
             : cl
@@ -93,7 +111,7 @@ export function ShiftView({ checklists: initial, employeeId, today }: Props) {
         );
       }
     },
-    [today]
+    [today, employeeName]
   );
 
   const handlePhotoUpload = useCallback(
@@ -177,7 +195,20 @@ export function ShiftView({ checklists: initial, employeeId, today }: Props) {
               className="w-full flex items-center justify-between p-4 text-left"
             >
               <div>
-                <h2 className="font-semibold text-white">{cl.title}</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-semibold text-white">{cl.title}</h2>
+                  {cl.roleName && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{
+                        backgroundColor: (cl.roleColor || "#3b82f6") + "22",
+                        color: cl.roleColor || "#3b82f6",
+                      }}
+                    >
+                      {cl.roleName}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-slate-400">
                   {cl.startTime} – {cl.endTime}
                 </p>
@@ -229,9 +260,22 @@ export function ShiftView({ checklists: initial, employeeId, today }: Props) {
                     </button>
 
                     <div className="flex-1 min-w-0">
-                      <p className={`font-medium ${item.completed ? "text-slate-500 line-through" : "text-white"}`}>
-                        {item.title}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className={`font-medium ${item.completed ? "text-slate-500 line-through" : "text-white"}`}>
+                          {item.title}
+                        </p>
+                        {item.completed && item.completedByName && (
+                          <span
+                            className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full font-medium"
+                            title={`Erledigt von ${item.completedByName}`}
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            {getInitials(item.completedByName)}
+                          </span>
+                        )}
+                      </div>
                       {item.description && (
                         <p className="text-sm text-slate-400 mt-0.5">{item.description}</p>
                       )}

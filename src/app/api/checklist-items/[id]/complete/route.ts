@@ -74,19 +74,10 @@ export async function DELETE(
     return NextResponse.json({ error: "date required" }, { status: 400 });
   }
 
-  try {
-    await prisma.completedItem.delete({
-      where: {
-        checklistItemId_employeeId_date: {
-          checklistItemId: id,
-          employeeId: session.sub,
-          date,
-        },
-      },
-    });
-  } catch {
-    // Already deleted, ignore
-  }
+  // Remove ALL completions for this item on this date (anyone can undo)
+  await prisma.completedItem.deleteMany({
+    where: { checklistItemId: id, date },
+  });
 
   return NextResponse.json({ ok: true });
 }
