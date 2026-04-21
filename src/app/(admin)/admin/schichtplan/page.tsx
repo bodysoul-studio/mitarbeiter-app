@@ -101,6 +101,7 @@ export default function SchichtplanPage() {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState("");
+  const [courseWindows, setCourseWindows] = useState<Record<string, { firstStart: string; lastEnd: string; count: number }>>({});
 
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const weekNum = getWeekNumber(weekStart);
@@ -124,6 +125,13 @@ export default function SchichtplanPage() {
     setTemplates([]);
     setRoles(roleData);
     setLoading(false);
+
+    // Load bsport course windows in parallel (non-blocking)
+    const weekEndStr = formatDate(addDays(weekStart, 6));
+    fetch(`/api/admin/bsport-courses?from=${ws}&to=${weekEndStr}`)
+      .then((r) => r.ok ? r.json() : {})
+      .then((data) => setCourseWindows(data))
+      .catch(() => setCourseWindows({}));
   }, [weekStart]);
 
   useEffect(() => {
@@ -323,6 +331,19 @@ export default function SchichtplanPage() {
                     </div>
                     <span className="text-xs text-slate-500">{DAY_LABELS[i]}</span>
                   </div>
+                  {courseWindows[dateStr] ? (
+                    <div className="flex items-center gap-1.5 mt-1 text-xs">
+                      <svg className="w-3 h-3 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-slate-300">
+                        {courseWindows[dateStr].firstStart} – {courseWindows[dateStr].lastEnd}
+                      </span>
+                      <span className="text-slate-500">({courseWindows[dateStr].count} Kurse)</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-600 mt-1">Keine Kurse</p>
+                  )}
                 </div>
 
                 {/* Shifts */}
