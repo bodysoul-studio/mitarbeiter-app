@@ -28,6 +28,7 @@ export type ChecklistWithItems = {
   roleColor?: string | null;
   items: {
     id: string;
+    parentId?: string | null;
     title: string;
     description: string | null;
     requiresPhoto: boolean;

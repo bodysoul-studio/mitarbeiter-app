@@ -75,6 +75,7 @@ export default async function SchichtPage() {
     roleColor: cl.role?.color || null,
     items: cl.items.map((item) => ({
       id: item.id,
+      parentId: item.parentId,
       title: item.title,
       description: item.description,
       requiresPhoto: item.requiresPhoto,

@@ -85,6 +85,7 @@ model Checklist {
 model ChecklistItem {
   id            String   @id @default(uuid())
   checklistId   String
+  parentId      String?
   title         String
   description   String?
   requiresPhoto Boolean  @default(false)
@@ -93,9 +94,12 @@ model ChecklistItem {
   updatedAt     DateTime @updatedAt
 
   checklist      Checklist       @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  parent         ChecklistItem?  @relation("ItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children       ChecklistItem[] @relation("ItemChildren")
   completedItems CompletedItem[]
 
   @@index([checklistId])
+  @@index([parentId])
   @@map("checklist_items")
 }
 

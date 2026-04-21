@@ -10,8 +10,10 @@ const updateChecklistSchema = z.object({
   endTime: z.string().min(1),
   items: z.array(z.object({
     title: z.string().min(1),
-    description: z.string().optional(),
+    description: z.string().optional().nullable(),
     requiresPhoto: z.boolean().optional(),
+    clientId: z.string().optional(),
+    parentClientId: z.string().optional().nullable(),
   })).optional(),
 });
 
@@ -59,33 +61,65 @@ export async function PUT(
     return NextResponse.json({ error: "Ungültige Eingabe" }, { status: 400 });
   }
 
-  // Delete old items and create new ones in a transaction
-  const checklist = await prisma.$transaction(async (tx) => {
-    await tx.checklistItem.deleteMany({ where: { checklistId: id } });
+  const items = body.items || [];
 
-    return tx.checklist.update({
+  // Delete old items, update checklist, recreate items with hierarchy
+  await prisma.$transaction(async (tx) => {
+    await tx.checklistItem.deleteMany({ where: { checklistId: id } });
+    await tx.checklist.update({
       where: { id },
       data: {
         title: body.title,
         roleId: body.roleId,
         startTime: body.startTime,
         endTime: body.endTime,
-        items: {
-          create: (body.items || []).map(
-            (item, index: number) => ({
-              title: item.title,
-              description: item.description || null,
-              requiresPhoto: item.requiresPhoto || false,
-              sortOrder: index,
-            })
-          ),
-        },
       },
-      include: { items: true, role: true },
     });
   });
 
-  return NextResponse.json(checklist);
+  // Re-create items in two passes
+  const clientIdToDbId = new Map<string, string>();
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item.parentClientId) {
+      const created = await prisma.checklistItem.create({
+        data: {
+          checklistId: id,
+          title: item.title,
+          description: item.description || null,
+          requiresPhoto: item.requiresPhoto || false,
+          sortOrder: i,
+        },
+      });
+      if (item.clientId) clientIdToDbId.set(item.clientId, created.id);
+    }
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.parentClientId) {
+      const parentDbId = clientIdToDbId.get(item.parentClientId);
+      if (!parentDbId) continue;
+      await prisma.checklistItem.create({
+        data: {
+          checklistId: id,
+          parentId: parentDbId,
+          title: item.title,
+          description: item.description || null,
+          requiresPhoto: item.requiresPhoto || false,
+          sortOrder: i,
+        },
+      });
+    }
+  }
+
+  const full = await prisma.checklist.findUnique({
+    where: { id },
+    include: { items: true, role: true },
+  });
+
+  return NextResponse.json(full);
 }
 
 export async function DELETE(

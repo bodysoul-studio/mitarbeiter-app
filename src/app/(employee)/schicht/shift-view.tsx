@@ -185,7 +185,20 @@ export function ShiftView({ checklists: initial, employeeId, employeeName, today
 
       {activeChecklists.map((cl) => {
         const isExpanded = expandedId === cl.id;
-        const clCompleted = cl.items.filter((i) => i.completed).length;
+        // For progress, count all items (parents included) - but parents with children use auto-completion
+        const parentsOfCl = cl.items.filter((i) => !i.parentId);
+        const isParentAutoComplete = (parentId: string) => {
+          const children = cl.items.filter((i) => i.parentId === parentId);
+          if (children.length === 0) return false;
+          return children.every((c) => c.completed);
+        };
+        // A parent is "completed" if it has children that are all done, OR it's a leaf and user checked it
+        const effectiveCompleted = (item: typeof cl.items[number]) => {
+          const hasChildren = cl.items.some((i) => i.parentId === item.id);
+          if (hasChildren) return isParentAutoComplete(item.id);
+          return !!item.completed;
+        };
+        const clCompleted = cl.items.filter((i) => effectiveCompleted(i)).length;
         const clTotal = cl.items.length;
 
         return (
@@ -234,79 +247,127 @@ export function ShiftView({ checklists: initial, employeeId, employeeName, today
             </button>
 
             {isExpanded && (
-              <div className="border-t border-slate-700 divide-y divide-slate-700/50">
-                {cl.items.map((item) => (
-                  <div key={item.id} className="p-4 flex items-start gap-3">
-                    <button
-                      onClick={() => {
-                        if (item.requiresPhoto && !item.completed) {
-                          handlePhotoUpload(cl.id, item.id);
-                        } else {
-                          toggleItem(cl.id, item.id, !!item.completed);
-                        }
-                      }}
-                      disabled={uploading[item.id]}
-                      className={`mt-0.5 flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
-                        item.completed
-                          ? "bg-blue-500 border-blue-500"
-                          : "border-slate-500 hover:border-blue-400"
-                      }`}
-                    >
-                      {item.completed && (
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
+              <div className="border-t border-slate-700">
+                {parentsOfCl.map((parent) => {
+                  const children = cl.items.filter((i) => i.parentId === parent.id);
+                  const hasChildren = children.length > 0;
+                  const parentDone = hasChildren ? isParentAutoComplete(parent.id) : !!parent.completed;
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className={`font-medium ${item.completed ? "text-slate-500 line-through" : "text-white"}`}>
-                          {item.title}
-                        </p>
-                        {item.completed && item.completedByName && (
-                          <span
-                            className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full font-medium"
-                            title={`Erledigt von ${item.completedByName}`}
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  return (
+                    <div key={parent.id} className="border-b border-slate-700/50 last:border-0">
+                      {/* Parent row */}
+                      <div className={`p-4 flex items-start gap-3 ${hasChildren ? "bg-slate-900/40" : ""}`}>
+                        <button
+                          onClick={() => {
+                            if (hasChildren) return; // Parents with children can't be toggled manually
+                            if (parent.requiresPhoto && !parent.completed) {
+                              handlePhotoUpload(cl.id, parent.id);
+                            } else {
+                              toggleItem(cl.id, parent.id, !!parent.completed);
+                            }
+                          }}
+                          disabled={hasChildren || uploading[parent.id]}
+                          className={`mt-0.5 flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
+                            parentDone
+                              ? "bg-blue-500 border-blue-500"
+                              : hasChildren
+                              ? "border-slate-600 cursor-default"
+                              : "border-slate-500 hover:border-blue-400"
+                          }`}
+                        >
+                          {parentDone && (
+                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
-                            {getInitials(item.completedByName)}
-                          </span>
-                        )}
-                      </div>
-                      {item.description && (
-                        <p className="text-sm text-slate-400 mt-0.5">{item.description}</p>
-                      )}
-                      {item.requiresPhoto && (
-                        <div className="flex items-center gap-2 mt-1">
-                          {item.photoUrl ? (
-                            <span className="text-xs text-green-400 flex items-center gap-1">
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              Foto vorhanden
-                            </span>
-                          ) : (
-                            <span className="text-xs text-amber-400 flex items-center gap-1">
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              Foto erforderlich
-                            </span>
+                          )}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className={`font-medium ${hasChildren ? "text-white" : parentDone ? "text-slate-500 line-through" : "text-white"}`}>
+                              {parent.title}
+                            </p>
+                            {hasChildren && (
+                              <span className="text-xs text-slate-500">
+                                {children.filter((c) => c.completed).length}/{children.length}
+                              </span>
+                            )}
+                            {!hasChildren && parent.completed && parent.completedByName && (
+                              <span
+                                className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full font-medium"
+                                title={`Erledigt von ${parent.completedByName}`}
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                                {getInitials(parent.completedByName)}
+                              </span>
+                            )}
+                          </div>
+                          {parent.description && (
+                            <p className="text-sm text-slate-400 mt-0.5">{parent.description}</p>
                           )}
                         </div>
-                      )}
-                    </div>
+                        {uploading[parent.id] && (
+                          <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+                        )}
+                      </div>
 
-                    {uploading[item.id] && (
-                      <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
-                    )}
-                  </div>
-                ))}
+                      {/* Children */}
+                      {children.map((child) => (
+                        <div key={child.id} className="px-4 py-3 pl-12 flex items-start gap-3 border-t border-slate-700/30">
+                          <button
+                            onClick={() => {
+                              if (child.requiresPhoto && !child.completed) {
+                                handlePhotoUpload(cl.id, child.id);
+                              } else {
+                                toggleItem(cl.id, child.id, !!child.completed);
+                              }
+                            }}
+                            disabled={uploading[child.id]}
+                            className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                              child.completed
+                                ? "bg-blue-500 border-blue-500"
+                                : "border-slate-500 hover:border-blue-400"
+                            }`}
+                          >
+                            {child.completed && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className={`text-sm ${child.completed ? "text-slate-500 line-through" : "text-slate-200"}`}>
+                                {child.title}
+                              </p>
+                              {child.completed && child.completedByName && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-400 px-1.5 py-0.5 rounded-full font-medium"
+                                  title={`Erledigt von ${child.completedByName}`}
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  {getInitials(child.completedByName)}
+                                </span>
+                              )}
+                            </div>
+                            {child.description && (
+                              <p className="text-xs text-slate-400 mt-0.5">{child.description}</p>
+                            )}
+                            {child.requiresPhoto && !child.photoUrl && !child.completed && (
+                              <p className="text-xs text-amber-400 mt-0.5">Foto erforderlich</p>
+                            )}
+                          </div>
+                          {uploading[child.id] && (
+                            <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

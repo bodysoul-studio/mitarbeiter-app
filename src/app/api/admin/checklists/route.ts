@@ -10,8 +10,10 @@ const checklistSchema = z.object({
   endTime: z.string().min(1),
   items: z.array(z.object({
     title: z.string().min(1),
-    description: z.string().optional(),
+    description: z.string().optional().nullable(),
     requiresPhoto: z.boolean().optional(),
+    clientId: z.string().optional(),
+    parentClientId: z.string().optional().nullable(),
   })).optional(),
 });
 
@@ -46,25 +48,61 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ungültige Eingabe" }, { status: 400 });
   }
 
+  const items = body.items || [];
+
+  // Create checklist first
   const checklist = await prisma.checklist.create({
     data: {
       title: body.title,
       roleId: body.roleId,
       startTime: body.startTime,
       endTime: body.endTime,
-      items: {
-        create: (body.items || []).map(
-          (item, index: number) => ({
-            title: item.title,
-            description: item.description || null,
-            requiresPhoto: item.requiresPhoto || false,
-            sortOrder: index,
-          })
-        ),
-      },
     },
+  });
+
+  // Create items in two passes: parents first, then children
+  const clientIdToDbId = new Map<string, string>();
+
+  // Pass 1: create parents (no parentClientId)
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item.parentClientId) {
+      const created = await prisma.checklistItem.create({
+        data: {
+          checklistId: checklist.id,
+          title: item.title,
+          description: item.description || null,
+          requiresPhoto: item.requiresPhoto || false,
+          sortOrder: i,
+        },
+      });
+      if (item.clientId) clientIdToDbId.set(item.clientId, created.id);
+    }
+  }
+
+  // Pass 2: create children
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.parentClientId) {
+      const parentDbId = clientIdToDbId.get(item.parentClientId);
+      if (!parentDbId) continue;
+      await prisma.checklistItem.create({
+        data: {
+          checklistId: checklist.id,
+          parentId: parentDbId,
+          title: item.title,
+          description: item.description || null,
+          requiresPhoto: item.requiresPhoto || false,
+          sortOrder: i,
+        },
+      });
+    }
+  }
+
+  const full = await prisma.checklist.findUnique({
+    where: { id: checklist.id },
     include: { items: true, role: true },
   });
 
-  return NextResponse.json(checklist, { status: 201 });
+  return NextResponse.json(full, { status: 201 });
 }
