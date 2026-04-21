@@ -14,6 +14,7 @@ type ShiftAssignment = {
   template: { id: string; name: string; color: string } | null;
   role: { id: string; name: string; color: string | null } | null;
   swapOfferId?: string | null;
+  wasSwapped?: boolean;
 };
 
 type Colleague = {
@@ -24,6 +25,15 @@ type Colleague = {
   label: string | null;
   roleName: string;
   roleColor: string | null;
+};
+
+type Candidate = {
+  id: string;
+  name: string;
+  roleName: string;
+  roleColor: string | null;
+  existingShifts: { label: string | null; startTime: string; endTime: string }[];
+  hasConflict: boolean;
 };
 
 type SwapOffer = {
@@ -93,6 +103,8 @@ export function WeekView({
   const [shifts, setShifts] = useState<ShiftAssignment[]>([]);
   const [colleaguesByDate, setColleaguesByDate] = useState<Record<string, Colleague[]>>({});
   const [swapOffers, setSwapOffers] = useState<SwapOffer[]>([]);
+  const [swapDialog, setSwapDialog] = useState<{ shiftId: string; candidates: Candidate[]; loading: boolean } | null>(null);
+  const [swapSuccess, setSwapSuccess] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -145,15 +157,36 @@ export function WeekView({
     return shifts.find((s) => s.date === dateStr);
   }
 
-  async function offerSwap(shiftId: string) {
-    setActionLoading(shiftId);
-    await fetch("/api/shift-swaps", {
+  async function openSwapDialog(shiftId: string) {
+    setSwapDialog({ shiftId, candidates: [], loading: true });
+    try {
+      const res = await fetch(`/api/shift-swaps/candidates?shiftId=${shiftId}`);
+      if (res.ok) {
+        const candidates = await res.json();
+        setSwapDialog({ shiftId, candidates, loading: false });
+      } else {
+        setSwapDialog({ shiftId, candidates: [], loading: false });
+      }
+    } catch {
+      setSwapDialog({ shiftId, candidates: [], loading: false });
+    }
+  }
+
+  async function swapShiftTo(newEmployeeId: string) {
+    if (!swapDialog) return;
+    setSwapDialog({ ...swapDialog, loading: true });
+    const res = await fetch("/api/shift-swaps/direct", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shiftAssignmentId: shiftId }),
+      body: JSON.stringify({ shiftId: swapDialog.shiftId, newEmployeeId }),
     });
+    if (res.ok) {
+      const cand = swapDialog.candidates.find((c) => c.id === newEmployeeId);
+      setSwapSuccess(cand ? `Schicht wurde an ${cand.name} übergeben.` : "Schicht getauscht.");
+      setTimeout(() => setSwapSuccess(""), 5000);
+    }
+    setSwapDialog(null);
     await fetchData();
-    setActionLoading(null);
   }
 
   async function withdrawSwap(swapOfferId: string) {
@@ -274,29 +307,22 @@ export function WeekView({
                               {shift.role.name}
                             </p>
                           )}
+                          {shift.wasSwapped && (
+                            <p className="text-orange-400 text-xs mt-1 flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                              </svg>
+                              Getauschte Schicht
+                            </p>
+                          )}
                         </div>
                         <div>
-                          {shift.swapOfferId ? (
-                            <button
-                              onClick={() => withdrawSwap(shift.swapOfferId!)}
-                              disabled={actionLoading === shift.swapOfferId}
-                              className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/40 text-orange-400 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-                            >
-                              {actionLoading === shift.swapOfferId
-                                ? "..."
-                                : "Tausch-Angebot zurückziehen"}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => offerSwap(shift.id)}
-                              disabled={actionLoading === shift.id}
-                              className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-                            >
-                              {actionLoading === shift.id
-                                ? "..."
-                                : "Zum Tausch anbieten"}
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openSwapDialog(shift.id)}
+                            className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Schicht tauschen
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -420,6 +446,74 @@ export function WeekView({
             )}
           </div>
         </>
+      )}
+
+      {/* Success toast */}
+      {swapSuccess && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+          ✓ {swapSuccess}
+        </div>
+      )}
+
+      {/* Swap dialog */}
+      {swapDialog && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSwapDialog(null)}>
+          <div className="bg-slate-800 border border-slate-700 rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+              <h2 className="text-white font-semibold">Schicht tauschen</h2>
+              <button onClick={() => setSwapDialog(null)} className="text-slate-400 hover:text-white">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3">
+              {swapDialog.loading ? (
+                <p className="text-slate-400 text-sm text-center py-6">Laden...</p>
+              ) : swapDialog.candidates.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-6">Keine passenden Kollegen gefunden.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-slate-500 px-2 py-1">
+                    Wähle eine Person, die die Schicht übernehmen soll:
+                  </p>
+                  {swapDialog.candidates.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => swapShiftTo(c.id)}
+                      disabled={swapDialog.loading}
+                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                        c.hasConflict
+                          ? "border-orange-600/30 bg-orange-600/5 hover:bg-orange-600/10"
+                          : "border-slate-700 bg-slate-900/50 hover:bg-slate-700/50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: c.roleColor || "#6b7280" }}
+                          />
+                          <span className="text-white font-medium truncate">{c.name}</span>
+                          <span className="text-xs text-slate-500 flex-shrink-0">{c.roleName}</span>
+                        </div>
+                      </div>
+                      {c.existingShifts.length > 0 ? (
+                        <p className={`text-xs mt-1 ${c.hasConflict ? "text-orange-400" : "text-slate-400"}`}>
+                          {c.hasConflict ? "⚠ Überschneidet sich — " : "Arbeitet bereits: "}
+                          {c.existingShifts.map((s) => `${s.label || "Schicht"} ${s.startTime}–${s.endTime}`).join(", ")}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-green-400 mt-1">Hat noch keine Schicht</p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

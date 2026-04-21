@@ -197,6 +197,20 @@ model EmployeeSchedule {
   @@map("employee_schedules")
 }
 
+// ─── Admin Notifications ───────────────────────────────────────
+
+model AdminNotification {
+  id        String   @id @default(uuid())
+  type      String
+  message   String
+  meta      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([read, createdAt])
+  @@map("admin_notifications")
+}
+
 // ─── Shift Templates ───────────────────────────────────────────
 
 model ShiftTemplate {
@@ -216,17 +230,19 @@ model ShiftTemplate {
 // ─── Shift Assignments ─────────────────────────────────────────
 
 model ShiftAssignment {
-  id              String   @id @default(uuid())
-  employeeId      String
-  date            String
-  shiftTemplateId String?
-  label           String?
-  startTime       String
-  endTime         String
-  roleId          String
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  employeeId          String
+  date                String
+  shiftTemplateId     String?
+  label               String?
+  startTime           String
+  endTime             String
+  roleId              String
+  notes               String?
+  wasSwapped          Boolean  @default(false)
+  originalEmployeeId  String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   employee      Employee         @relation(fields: [employeeId], references: [id])
   shiftTemplate ShiftTemplate?   @relation(fields: [shiftTemplateId], references: [id])
