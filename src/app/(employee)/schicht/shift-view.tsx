@@ -22,15 +22,16 @@ export function ShiftView({ checklists: initial, employeeId, today }: Props) {
   const [currentTime, setCurrentTime] = useState(getCurrentTime);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(getCurrentTime()), 60_000);
     return () => clearInterval(interval);
   }, []);
 
-  // Filter active checklists by time
+  // Filter active checklists by time (or show all in preview mode)
   const activeChecklists = checklists
-    .filter((c) => currentTime >= c.startTime)
+    .filter((c) => showAll || currentTime >= c.startTime)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   // Auto-expand the most recent checklist
@@ -142,8 +143,20 @@ export function ShiftView({ checklists: initial, employeeId, today }: Props) {
         </div>
       </div>
 
-      {/* Current time */}
-      <p className="text-center text-slate-400 text-sm">Aktuelle Zeit: {currentTime}</p>
+      {/* Current time + preview toggle */}
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-slate-400">Aktuelle Zeit: {currentTime}</span>
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+            showAll
+              ? "bg-orange-500/20 text-orange-400"
+              : "bg-slate-800 text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          {showAll ? "Vorschau aktiv" : "Alle anzeigen"}
+        </button>
+      </div>
 
       {activeChecklists.length === 0 && (
         <div className="text-center py-12 text-slate-500">

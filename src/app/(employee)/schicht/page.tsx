@@ -16,9 +16,16 @@ export default async function SchichtPage() {
 
   const today = getTodayDate();
 
+  // Include additional roles
+  let additionalRoleIds: string[] = [];
+  try {
+    additionalRoleIds = JSON.parse(employee.additionalRoles || "[]");
+  } catch { additionalRoleIds = []; }
+  const allRoleIds = [employee.roleId, ...additionalRoleIds.filter((id) => id !== employee.roleId)];
+
   const checklists = await prisma.checklist.findMany({
     where: {
-      roleId: employee.roleId,
+      roleId: { in: allRoleIds },
       isActive: true,
     },
     include: {
