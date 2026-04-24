@@ -22,6 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 export type Role = { id: string; name: string };
 export type ChecklistRef = { id: string; title: string; roleId: string; roleName?: string };
+export type CourseRoomRef = { id: string; name: string; color: string };
 
 export type Slot = {
   clientId: string;
@@ -32,6 +33,8 @@ export type Slot = {
   taskTitle: string;
   taskDescription: string;
   taskRequiresPhoto: boolean;
+  courseRoomId: string | null;
+  leadMinutes: number;
 };
 
 export type Template = {
@@ -49,11 +52,13 @@ function makeId() {
 function SortableSlot({
   slot,
   index,
+  courseRooms,
   onEdit,
   onRemove,
 }: {
   slot: Slot;
   index: number;
+  courseRooms: CourseRoomRef[];
   onEdit: (updater: (s: Slot) => Slot) => void;
   onRemove: () => void;
 }) {
@@ -88,22 +93,71 @@ function SortableSlot({
         <span className="text-xs text-slate-500 mt-2 w-6">#{index + 1}</span>
 
         <div className="flex-1 space-y-2">
-          {/* Time + Type */}
-          <div className="flex items-center gap-2">
-            <input
-              type="time"
-              value={slot.time}
-              onChange={(e) => onEdit((s) => ({ ...s, time: e.target.value }))}
-              className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500 w-24"
-            />
+          {/* Time/Room toggle + Type */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {slot.type === "task" && (
+              <div className="flex gap-1 bg-slate-900 border border-slate-600 rounded p-0.5">
+                <button
+                  type="button"
+                  onClick={() => onEdit((s) => ({ ...s, courseRoomId: null }))}
+                  className={`text-xs px-2 py-1 rounded transition-colors ${
+                    !slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"
+                  }`}
+                >
+                  Feste Zeit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEdit((s) => ({ ...s, courseRoomId: courseRooms[0]?.id || "" }))}
+                  disabled={courseRooms.length === 0}
+                  className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-30 ${
+                    slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"
+                  }`}
+                >
+                  Pro Kurs
+                </button>
+              </div>
+            )}
+            {(!slot.courseRoomId || slot.type === "checklist") && (
+              <input
+                type="time"
+                value={slot.time}
+                onChange={(e) => onEdit((s) => ({ ...s, time: e.target.value }))}
+                className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500 w-24"
+              />
+            )}
+            {slot.courseRoomId && slot.type === "task" && (
+              <>
+                <select
+                  value={slot.courseRoomId}
+                  onChange={(e) => onEdit((s) => ({ ...s, courseRoomId: e.target.value }))}
+                  className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
+                >
+                  {courseRooms.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={slot.leadMinutes}
+                    onChange={(e) => onEdit((s) => ({ ...s, leadMinutes: parseInt(e.target.value) || 0 }))}
+                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500 w-16"
+                  />
+                  <span className="text-xs text-slate-400">Min. vorher</span>
+                </div>
+              </>
+            )}
             <span
               className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                 slot.type === "checklist"
                   ? "bg-blue-500/15 text-blue-400"
+                  : slot.courseRoomId
+                  ? "bg-purple-500/15 text-purple-400"
                   : "bg-green-500/15 text-green-400"
               }`}
             >
-              {slot.type === "checklist" ? "Checkliste" : "Einzel-Aufgabe"}
+              {slot.type === "checklist" ? "Checkliste" : slot.courseRoomId ? "Pro Kurs" : "Einzel-Aufgabe"}
             </span>
           </div>
 
@@ -155,10 +209,12 @@ function SortableSlot({
 export function DayTemplateBuilder({
   roles,
   checklists,
+  courseRooms,
   template,
 }: {
   roles: Role[];
   checklists: ChecklistRef[];
+  courseRooms: CourseRoomRef[];
   template?: Template;
 }) {
   const router = useRouter();
@@ -198,6 +254,8 @@ export function DayTemplateBuilder({
         taskTitle: "",
         taskDescription: "",
         taskRequiresPhoto: false,
+        courseRoomId: null,
+        leadMinutes: 15,
       },
     ]);
   }
@@ -213,6 +271,8 @@ export function DayTemplateBuilder({
         taskTitle: "",
         taskDescription: "",
         taskRequiresPhoto: false,
+        courseRoomId: null,
+        leadMinutes: 15,
       },
     ]);
   }
@@ -238,6 +298,8 @@ export function DayTemplateBuilder({
         taskTitle: s.taskTitle || null,
         taskDescription: s.taskDescription || null,
         taskRequiresPhoto: s.taskRequiresPhoto,
+        courseRoomId: s.courseRoomId || null,
+        leadMinutes: s.leadMinutes ?? 15,
       })),
     };
 
@@ -368,6 +430,7 @@ export function DayTemplateBuilder({
                     key={slot.clientId}
                     slot={slot}
                     index={idx}
+                    courseRooms={courseRooms}
                     onEdit={(updater) => updateSlot(slot.clientId, updater)}
                     onRemove={() => removeSlot(slot.clientId)}
                   />

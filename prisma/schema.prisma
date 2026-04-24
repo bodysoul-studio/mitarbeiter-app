@@ -219,6 +219,33 @@ model AdminNotification {
   @@map("admin_notifications")
 }
 
+// ─── Course Rooms ──────────────────────────────────────────────
+
+model CourseRoom {
+  id        String   @id @default(uuid())
+  name      String
+  color     String   @default("#3b82f6")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities CourseRoomActivity[]
+  slots      DayTemplateSlot[]
+
+  @@map("course_rooms")
+}
+
+model CourseRoomActivity {
+  id           String @id @default(uuid())
+  courseRoomId String
+  activityName String
+
+  courseRoom CourseRoom @relation(fields: [courseRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([courseRoomId, activityName])
+  @@map("course_room_activities")
+}
+
 // ─── Day Templates (Tagesbaukasten) ────────────────────────────
 
 model DayTemplate {
@@ -245,9 +272,12 @@ model DayTemplateSlot {
   taskTitle         String?
   taskDescription   String?
   taskRequiresPhoto Boolean  @default(false)
+  courseRoomId      String?
+  leadMinutes       Int      @default(15)
 
   dayTemplate DayTemplate         @relation(fields: [dayTemplateId], references: [id], onDelete: Cascade)
   checklist   Checklist?          @relation(fields: [checklistId], references: [id], onDelete: SetNull)
+  courseRoom  CourseRoom?         @relation(fields: [courseRoomId], references: [id], onDelete: SetNull)
   completions CompletedSlotTask[]
 
   @@index([dayTemplateId, sortOrder])

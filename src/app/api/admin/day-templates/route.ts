@@ -10,6 +10,8 @@ const slotSchema = z.object({
   taskTitle: z.string().optional().nullable(),
   taskDescription: z.string().optional().nullable(),
   taskRequiresPhoto: z.boolean().optional(),
+  courseRoomId: z.string().optional().nullable(),
+  leadMinutes: z.number().optional(),
 });
 
 const createSchema = z.object({
@@ -68,6 +70,8 @@ export async function POST(req: NextRequest) {
           taskTitle: s.type === "task" ? s.taskTitle || null : null,
           taskDescription: s.type === "task" ? s.taskDescription || null : null,
           taskRequiresPhoto: s.type === "task" ? !!s.taskRequiresPhoto : false,
+          courseRoomId: s.type === "task" ? s.courseRoomId || null : null,
+          leadMinutes: s.leadMinutes ?? 15,
         })),
       },
     },

@@ -9,7 +9,7 @@ export default async function EditTagesplanPage({
 }) {
   const { id } = await params;
 
-  const [template, roles, checklists] = await Promise.all([
+  const [template, roles, checklists, courseRooms] = await Promise.all([
     prisma.dayTemplate.findUnique({
       where: { id },
       include: {
@@ -25,6 +25,7 @@ export default async function EditTagesplanPage({
       include: { role: { select: { name: true } } },
       orderBy: [{ role: { name: "asc" } }, { title: "asc" }],
     }),
+    prisma.courseRoom.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   if (!template) notFound();
@@ -35,6 +36,7 @@ export default async function EditTagesplanPage({
     roleId: c.roleId,
     roleName: c.role?.name,
   }));
+  const roomRefs = courseRooms.map((r) => ({ id: r.id, name: r.name, color: r.color }));
 
   const templateData = {
     id: template.id,
@@ -50,13 +52,15 @@ export default async function EditTagesplanPage({
       taskTitle: s.taskTitle || "",
       taskDescription: s.taskDescription || "",
       taskRequiresPhoto: s.taskRequiresPhoto,
+      courseRoomId: s.courseRoomId,
+      leadMinutes: s.leadMinutes,
     })),
   };
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Tagesplan bearbeiten</h1>
-      <DayTemplateBuilder roles={roles} checklists={checklistRefs} template={templateData} />
+      <DayTemplateBuilder roles={roles} checklists={checklistRefs} courseRooms={roomRefs} template={templateData} />
     </div>
   );
 }
