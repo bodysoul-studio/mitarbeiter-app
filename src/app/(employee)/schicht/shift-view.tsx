@@ -12,6 +12,7 @@ type TemplateSlot = {
     title: string;
     roleName: string;
     roleColor: string | null;
+    color?: string | null;
     items: {
       id: string;
       parentId: string | null;
@@ -31,6 +32,7 @@ type TemplateSlot = {
     completed: boolean;
     photoUrl: string | null;
     completedByName: string | null;
+    color?: string | null;
   } | null;
 };
 
@@ -411,8 +413,13 @@ export function ShiftView({ checklists: initial, template, employeeId, employeeN
               const done = cl.items.filter((i) => effectiveCompleted(i)).length;
               const total = cl.items.length;
 
+              const clColor = cl.color || cl.roleColor;
               return (
-                <div key={slot.id} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+                <div
+                  key={slot.id}
+                  className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden"
+                  style={clColor ? { borderLeftWidth: 4, borderLeftColor: clColor } : {}}
+                >
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : slot.id)}
                     className="w-full flex items-center justify-between p-4 text-left"
@@ -554,10 +561,12 @@ export function ShiftView({ checklists: initial, template, employeeId, employeeN
             // Single task slot
             if (slot.type === "task" && slot.task) {
               const task = slot.task;
+              const taskColor = task.color;
               return (
                 <div
                   key={slot.id}
                   className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-start gap-3"
+                  style={taskColor ? { borderLeftWidth: 4, borderLeftColor: taskColor } : {}}
                 >
                   {slot.time && (
                     <span className="text-sm text-slate-400 font-mono mt-1">{slot.time}</span>

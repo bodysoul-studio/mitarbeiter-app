@@ -15,7 +15,7 @@ export default async function EditTagesplanPage({
       include: {
         slots: {
           orderBy: { sortOrder: "asc" },
-          include: { checklist: { select: { id: true, title: true } } },
+          include: { checklist: { select: { id: true, title: true, color: true } } },
         },
       },
     }),
@@ -36,6 +36,7 @@ export default async function EditTagesplanPage({
     roleId: c.roleId,
     roleName: c.role?.name,
     itemCount: c._count.items,
+    color: c.color,
   }));
   const roomRefs = courseRooms.map((r) => ({ id: r.id, name: r.name, color: r.color }));
 
@@ -50,6 +51,7 @@ export default async function EditTagesplanPage({
       type: s.type as "checklist" | "task",
       checklistId: s.checklistId,
       checklistTitle: s.checklist?.title,
+      checklistColor: s.checklist?.color || null,
       taskTitle: s.taskTitle || "",
       taskDescription: s.taskDescription || "",
       taskRequiresPhoto: s.taskRequiresPhoto,
@@ -57,6 +59,7 @@ export default async function EditTagesplanPage({
       leadMinutes: s.leadMinutes,
       anchor: ((s.anchor as "first" | "last" | "each" | "recurring" | null) || "fixed") as "fixed" | "first" | "last" | "each" | "recurring",
       repeatTimes: s.repeatTimes || "",
+      color: s.color || null,
     })),
   };
 

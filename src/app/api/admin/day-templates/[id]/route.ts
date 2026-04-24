@@ -14,6 +14,7 @@ const slotSchema = z.object({
   leadMinutes: z.number().optional(),
   anchor: z.string().optional().nullable(),
   repeatTimes: z.string().optional().nullable(),
+  color: z.string().optional().nullable(),
 });
 
 const updateSchema = z.object({
@@ -88,6 +89,7 @@ export async function PUT(
             leadMinutes: s.leadMinutes ?? 15,
             anchor: s.anchor || null,
             repeatTimes: s.repeatTimes || null,
+            color: s.color || null,
           })),
         },
       },

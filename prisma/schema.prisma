@@ -69,6 +69,7 @@ model Checklist {
   title     String
   roleId    String
   shiftType String   @default("")
+  color     String?
   startTime String
   endTime   String
   sortOrder Int      @default(0)
@@ -276,6 +277,7 @@ model DayTemplateSlot {
   leadMinutes       Int      @default(15)
   anchor            String?
   repeatTimes       String?
+  color             String?
 
   dayTemplate DayTemplate         @relation(fields: [dayTemplateId], references: [id], onDelete: Cascade)
   checklist   Checklist?          @relation(fields: [checklistId], references: [id], onDelete: SetNull)

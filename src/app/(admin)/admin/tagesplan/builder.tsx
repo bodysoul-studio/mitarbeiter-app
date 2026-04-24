@@ -27,6 +27,7 @@ export type ChecklistRef = {
   roleId: string;
   roleName?: string;
   itemCount?: number;
+  color?: string | null;
 };
 export type CourseRoomRef = { id: string; name: string; color: string };
 
@@ -38,6 +39,7 @@ export type Slot = {
   type: "checklist" | "task";
   checklistId: string | null;
   checklistTitle?: string;
+  checklistColor?: string | null;
   taskTitle: string;
   taskDescription: string;
   taskRequiresPhoto: boolean;
@@ -45,6 +47,7 @@ export type Slot = {
   leadMinutes: number;
   anchor: Anchor;
   repeatTimes: string;
+  color: string | null;
 };
 
 export type Template = {
@@ -225,6 +228,24 @@ function SortableSlot({
                 />
                 Foto erforderlich
               </label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Farbe:</span>
+                <input
+                  type="color"
+                  value={slot.color || "#10b981"}
+                  onChange={(e) => onEdit((s) => ({ ...s, color: e.target.value }))}
+                  className="w-8 h-6 bg-slate-900 border border-slate-600 rounded cursor-pointer"
+                />
+                {slot.color && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit((s) => ({ ...s, color: null }))}
+                    className="text-xs text-slate-500 hover:text-slate-300"
+                  >
+                    Standard
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -314,6 +335,7 @@ export function DayTemplateBuilder({
         type: "checklist",
         checklistId,
         checklistTitle: cl.title,
+        checklistColor: cl.color,
         taskTitle: "",
         taskDescription: "",
         taskRequiresPhoto: false,
@@ -321,6 +343,7 @@ export function DayTemplateBuilder({
         leadMinutes: 15,
         anchor: "fixed",
         repeatTimes: "",
+        color: null,
       },
     ]);
   }
@@ -340,6 +363,7 @@ export function DayTemplateBuilder({
         leadMinutes: 15,
         anchor: presetRoomId ? "each" : "fixed",
         repeatTimes: "",
+        color: null,
       },
     ]);
   }
@@ -369,6 +393,7 @@ export function DayTemplateBuilder({
         leadMinutes: s.leadMinutes ?? 15,
         anchor: s.anchor === "fixed" ? null : s.anchor,
         repeatTimes: s.anchor === "recurring" ? s.repeatTimes || null : null,
+        color: s.color || null,
       })),
     };
 
@@ -404,6 +429,7 @@ export function DayTemplateBuilder({
       itemCount?: number;
       isEmpty?: boolean;
       requiresPhoto?: boolean;
+      accentColor?: string | null;
     };
     const out: PSlot[] = [];
 
@@ -449,6 +475,7 @@ export function DayTemplateBuilder({
             badge: "Mehrere Zeiten",
             badgeColor: "bg-teal-500/15 text-teal-400",
             isEmpty: true,
+            accentColor: s.color,
           });
         } else {
           for (const t of times) {
@@ -461,6 +488,7 @@ export function DayTemplateBuilder({
               badge: "Wiederkehrend",
               badgeColor: "bg-teal-500/15 text-teal-400",
               requiresPhoto: s.taskRequiresPhoto,
+              accentColor: s.color,
             });
           }
         }
@@ -479,6 +507,7 @@ export function DayTemplateBuilder({
             badge: "Pro Kurs",
             badgeColor: "bg-purple-500/15 text-purple-400",
             isEmpty: true,
+            accentColor: s.color,
           });
         } else {
           for (const offer of matching) {
@@ -491,6 +520,7 @@ export function DayTemplateBuilder({
               badge: "Pro Kurs",
               badgeColor: "bg-purple-500/15 text-purple-400",
               requiresPhoto: s.taskRequiresPhoto,
+              accentColor: s.color,
             });
           }
         }
@@ -503,6 +533,7 @@ export function DayTemplateBuilder({
         const cl = s.type === "checklist" ? checklists.find((c) => c.id === s.checklistId) : null;
         const title = s.type === "checklist" ? cl?.title || s.checklistTitle || "Checkliste" : s.taskTitle || "Aufgabe";
 
+        const accent = s.type === "checklist" ? cl?.color || s.checklistColor || null : s.color;
         if (matching.length === 0) {
           out.push({
             key: s.clientId,
@@ -513,6 +544,7 @@ export function DayTemplateBuilder({
             badgeColor: "bg-indigo-500/15 text-indigo-400",
             itemCount: cl?.itemCount,
             isEmpty: true,
+            accentColor: accent,
           });
         } else {
           const resolvedTime =
@@ -530,6 +562,7 @@ export function DayTemplateBuilder({
             badgeColor: "bg-indigo-500/15 text-indigo-400",
             itemCount: cl?.itemCount,
             requiresPhoto: s.type === "task" ? s.taskRequiresPhoto : undefined,
+            accentColor: accent,
           });
         }
         continue;
@@ -546,6 +579,7 @@ export function DayTemplateBuilder({
           badge: "Checkliste",
           badgeColor: "bg-blue-500/15 text-blue-400",
           itemCount: cl?.itemCount,
+          accentColor: cl?.color || s.checklistColor || null,
         });
       } else {
         out.push({
@@ -557,6 +591,7 @@ export function DayTemplateBuilder({
           badge: "Aufgabe",
           badgeColor: "bg-green-500/15 text-green-400",
           requiresPhoto: s.taskRequiresPhoto,
+          accentColor: s.color,
         });
       }
     }
@@ -687,6 +722,7 @@ export function DayTemplateBuilder({
                       key={c.id}
                       type="button"
                       onClick={() => addChecklistSlot(c.id)}
+                      style={c.color ? { borderLeftWidth: 4, borderLeftColor: c.color } : undefined}
                       className="w-full text-left px-3 py-2 bg-slate-900/50 hover:bg-blue-600/20 border border-slate-700 hover:border-blue-500/50 rounded text-sm text-white transition-colors"
                     >
                       <span className="block font-medium">{c.title}</span>
@@ -817,6 +853,7 @@ export function DayTemplateBuilder({
                 previewSlots.map((slot) => (
                   <div
                     key={slot.key}
+                    style={slot.accentColor ? { borderLeftWidth: 4, borderLeftColor: slot.accentColor } : undefined}
                     className={`bg-slate-800 border rounded-lg p-2 ${
                       slot.isEmpty
                         ? "border-slate-700/50 opacity-60"

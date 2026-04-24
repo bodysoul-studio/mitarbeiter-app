@@ -87,6 +87,7 @@ export default async function VorschauPage({
     requiresPhoto?: boolean;
     isCourseRoom?: boolean;
     isEmpty?: boolean;
+    accentColor?: string | null;
   };
 
   const builtSlots: PreviewSlot[] = [];
@@ -107,6 +108,7 @@ export default async function VorschauPage({
           description: null,
           isCourseRoom: true,
           isEmpty: true,
+          accentColor: s.color,
         });
       } else {
         for (const offer of matching) {
@@ -120,6 +122,7 @@ export default async function VorschauPage({
             requiresPhoto: s.taskRequiresPhoto,
             isCourseRoom: true,
             meta: `Vorlauf ${s.leadMinutes} Min. · Raum ${s.courseRoom.name}`,
+            accentColor: s.color,
           });
         }
       }
@@ -159,6 +162,7 @@ export default async function VorschauPage({
           requiresPhoto: i.requiresPhoto,
         })),
         isEmpty: s.courseRoomId ? resolvedTime === null : false,
+        accentColor: s.checklist.color || null,
       });
     } else {
       builtSlots.push({
@@ -168,6 +172,7 @@ export default async function VorschauPage({
         title: s.taskTitle || "",
         description: s.taskDescription,
         requiresPhoto: s.taskRequiresPhoto,
+        accentColor: s.color,
       });
     }
   }
@@ -269,6 +274,7 @@ export default async function VorschauPage({
                   return (
                     <div
                       key={slot.id}
+                      style={slot.accentColor ? { borderLeftWidth: 4, borderLeftColor: slot.accentColor } : undefined}
                       className="bg-slate-800 border border-slate-700 rounded-xl p-3"
                     >
                       <div className="flex items-center gap-2 flex-wrap">
@@ -312,6 +318,7 @@ export default async function VorschauPage({
                 return (
                   <div
                     key={slot.id}
+                    style={slot.accentColor ? { borderLeftWidth: 4, borderLeftColor: slot.accentColor } : undefined}
                     className={`bg-slate-800 border rounded-xl p-3 ${
                       slot.isEmpty
                         ? "border-slate-700/50 opacity-60"

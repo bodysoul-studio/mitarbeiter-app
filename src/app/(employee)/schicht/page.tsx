@@ -10,6 +10,7 @@ type BuiltChecklist = {
   title: string;
   roleName: string;
   roleColor: string | null;
+  color?: string | null;
   items: {
     id: string;
     parentId: string | null;
@@ -30,6 +31,7 @@ type BuiltTask = {
   completed: boolean;
   photoUrl: string | null;
   completedByName: string | null;
+  color?: string | null;
 };
 
 type BuiltSlot = {
@@ -229,6 +231,7 @@ export default async function SchichtPage() {
               completed: false,
               photoUrl: null,
               completedByName: null,
+              color: s.color,
             },
           });
         } else {
@@ -246,6 +249,7 @@ export default async function SchichtPage() {
                 completed: !!completedSlotMap[slotKey],
                 photoUrl: completedSlotMap[slotKey]?.photoUrl ?? null,
                 completedByName: completedSlotMap[slotKey]?.completedByName ?? null,
+                color: s.color,
               },
             });
           }
@@ -270,6 +274,7 @@ export default async function SchichtPage() {
               completed: false,
               photoUrl: null,
               completedByName: null,
+              color: s.color,
             },
           });
         } else {
@@ -288,6 +293,7 @@ export default async function SchichtPage() {
                 completed: !!completedSlotMap[slotKey],
                 photoUrl: completedSlotMap[slotKey]?.photoUrl ?? null,
                 completedByName: completedSlotMap[slotKey]?.completedByName ?? null,
+                color: s.color,
               },
             });
           }
@@ -338,6 +344,7 @@ export default async function SchichtPage() {
               title: s.checklist.title + titleSuffix,
               roleName: s.checklist.role?.name || "",
               roleColor: s.checklist.role?.color || null,
+              color: s.checklist.color || null,
               items: s.checklist.items.map((item) => ({
                 id: item.id,
                 parentId: item.parentId,
@@ -360,6 +367,7 @@ export default async function SchichtPage() {
                 completed: !!completedSlotMap[s.id],
                 photoUrl: completedSlotMap[s.id]?.photoUrl ?? null,
                 completedByName: completedSlotMap[s.id]?.completedByName ?? null,
+                color: s.color,
               }
             : null,
       });

@@ -18,6 +18,7 @@ export default async function NeuerTagesplanPage() {
     roleId: c.roleId,
     roleName: c.role?.name,
     itemCount: c._count.items,
+    color: c.color,
   }));
   const roomRefs = courseRooms.map((r) => ({ id: r.id, name: r.name, color: r.color }));
 

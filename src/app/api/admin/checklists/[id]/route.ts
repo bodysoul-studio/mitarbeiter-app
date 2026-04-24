@@ -7,6 +7,7 @@ const updateChecklistSchema = z.object({
   title: z.string().min(1).max(500),
   roleId: z.string().min(1),
   shiftType: z.string().optional(),
+  color: z.string().optional().nullable(),
   startTime: z.string().min(1),
   endTime: z.string().min(1),
   items: z.array(z.object({
@@ -73,6 +74,7 @@ export async function PUT(
         title: body.title,
         roleId: body.roleId,
         shiftType: body.shiftType ?? "",
+        color: body.color ?? null,
         startTime: body.startTime,
         endTime: body.endTime,
       },

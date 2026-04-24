@@ -52,6 +52,7 @@ export default async function ChecklistenPage() {
             {items.map((cl) => (
               <div
                 key={cl.id}
+                style={cl.color ? { borderLeftWidth: 4, borderLeftColor: cl.color } : undefined}
                 className="bg-slate-800 border border-slate-700 rounded-lg p-4 flex items-center justify-between"
               >
                 <div>

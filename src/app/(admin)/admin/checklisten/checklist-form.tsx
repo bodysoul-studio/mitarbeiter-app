@@ -38,6 +38,7 @@ type Checklist = {
   title: string;
   roleId: string;
   shiftType?: string;
+  color?: string | null;
   startTime: string;
   endTime: string;
   items: ServerItem[];
@@ -91,6 +92,7 @@ export function ChecklistForm({
   const [title, setTitle] = useState(checklist?.title || "");
   const [roleId, setRoleId] = useState(checklist?.roleId || (roles[0]?.id || ""));
   const [shiftType, setShiftType] = useState(checklist?.shiftType || "");
+  const [color, setColor] = useState(checklist?.color || "");
   const [startTime, setStartTime] = useState(checklist?.startTime || "06:00");
   const [endTime, setEndTime] = useState(checklist?.endTime || "14:00");
 
@@ -198,6 +200,7 @@ export function ChecklistForm({
       title,
       roleId,
       shiftType,
+      color: color || null,
       startTime,
       endTime,
       items: validItems.map((i) => ({
@@ -280,6 +283,27 @@ export function ChecklistForm({
               <option value="spaet">Nur Spätschicht</option>
               <option value="ganztag">Nur Ganztag</option>
             </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm text-slate-400 mb-1">Farbe (optional)</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={color || "#3b82f6"}
+              onChange={(e) => setColor(e.target.value)}
+              className="w-16 h-10 bg-slate-900 border border-slate-600 rounded cursor-pointer"
+            />
+            {color && (
+              <button
+                type="button"
+                onClick={() => setColor("")}
+                className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1"
+              >
+                Farbe entfernen (Standard)
+              </button>
+            )}
           </div>
         </div>
 
