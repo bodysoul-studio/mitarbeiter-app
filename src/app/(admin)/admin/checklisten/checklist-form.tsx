@@ -22,6 +22,7 @@ type Checklist = {
   id: string;
   title: string;
   roleId: string;
+  shiftType?: string;
   startTime: string;
   endTime: string;
   items: ServerItem[];
@@ -42,6 +43,7 @@ export function ChecklistForm({
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(checklist?.title || "");
   const [roleId, setRoleId] = useState(checklist?.roleId || (roles[0]?.id || ""));
+  const [shiftType, setShiftType] = useState(checklist?.shiftType || "");
   const [startTime, setStartTime] = useState(checklist?.startTime || "06:00");
   const [endTime, setEndTime] = useState(checklist?.endTime || "14:00");
 
@@ -101,6 +103,7 @@ export function ChecklistForm({
     const payload = {
       title,
       roleId,
+      shiftType,
       startTime,
       endTime,
       items: validItems.map((i) => ({
@@ -158,17 +161,32 @@ export function ChecklistForm({
           />
         </div>
 
-        <div>
-          <label className="block text-sm text-slate-400 mb-1">Rolle</label>
-          <select
-            value={roleId}
-            onChange={(e) => setRoleId(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-          >
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Rolle</label>
+            <select
+              value={roleId}
+              onChange={(e) => setRoleId(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            >
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Schichttyp</label>
+            <select
+              value={shiftType}
+              onChange={(e) => setShiftType(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="">Alle Schichten</option>
+              <option value="frueh">Nur Frühschicht</option>
+              <option value="spaet">Nur Spätschicht</option>
+              <option value="ganztag">Nur Ganztag</option>
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

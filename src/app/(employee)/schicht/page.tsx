@@ -23,10 +23,26 @@ export default async function SchichtPage() {
   } catch { additionalRoleIds = []; }
   const allRoleIds = [employee.roleId, ...additionalRoleIds.filter((id) => id !== employee.roleId)];
 
+  // Today's weekday (0=Mo, 6=So)
+  const todayDate = new Date();
+  const jsDay = todayDate.getDay();
+  const weekday = jsDay === 0 ? 6 : jsDay - 1;
+
+  // Employee's shift type for today (if any)
+  const todaySchedule = await prisma.employeeSchedule.findFirst({
+    where: { employeeId: employee.id, weekday },
+  });
+  const todayShiftType = todaySchedule?.shiftType || "";
+
   const checklists = await prisma.checklist.findMany({
     where: {
       roleId: { in: allRoleIds },
       isActive: true,
+      // Either checklist matches any shift ("" = all) or matches today's shift type
+      OR: [
+        { shiftType: "" },
+        ...(todayShiftType ? [{ shiftType: todayShiftType }] : []),
+      ],
     },
     include: {
       role: { select: { id: true, name: true, color: true } },

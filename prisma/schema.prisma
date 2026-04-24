@@ -66,6 +66,7 @@ model Checklist {
   id        String   @id @default(uuid())
   title     String
   roleId    String
+  shiftType String   @default("")
   startTime String
   endTime   String
   sortOrder Int      @default(0)

@@ -6,6 +6,7 @@ import { z } from "zod";
 const updateChecklistSchema = z.object({
   title: z.string().min(1).max(500),
   roleId: z.string().min(1),
+  shiftType: z.string().optional(),
   startTime: z.string().min(1),
   endTime: z.string().min(1),
   items: z.array(z.object({
@@ -71,6 +72,7 @@ export async function PUT(
       data: {
         title: body.title,
         roleId: body.roleId,
+        shiftType: body.shiftType ?? "",
         startTime: body.startTime,
         endTime: body.endTime,
       },

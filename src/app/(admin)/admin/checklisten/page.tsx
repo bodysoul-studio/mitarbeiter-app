@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { DeleteChecklistButton } from "./delete-button";
+import { DuplicateChecklistButton } from "./duplicate-button";
+
+const SHIFT_LABELS: Record<string, string> = {
+  frueh: "Frühschicht",
+  spaet: "Spätschicht",
+  ganztag: "Ganztag",
+};
 
 export default async function ChecklistenPage() {
   const checklists = await prisma.checklist.findMany({
@@ -48,7 +55,14 @@ export default async function ChecklistenPage() {
                 className="bg-slate-800 border border-slate-700 rounded-lg p-4 flex items-center justify-between"
               >
                 <div>
-                  <p className="font-medium text-white">{cl.title}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium text-white">{cl.title}</p>
+                    {cl.shiftType && SHIFT_LABELS[cl.shiftType] && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-500/15 text-amber-400">
+                        {SHIFT_LABELS[cl.shiftType]}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-slate-400">
                     {cl.startTime} - {cl.endTime} &middot; {cl.items.length}{" "}
                     {cl.items.length === 1 ? "Punkt" : "Punkte"}
@@ -57,10 +71,11 @@ export default async function ChecklistenPage() {
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/admin/checklisten/${cl.id}`}
-                    className="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 rounded transition-colors"
+                    className="px-3 py-1 text-sm bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded transition-colors"
                   >
                     Bearbeiten
                   </Link>
+                  <DuplicateChecklistButton id={cl.id} />
                   <DeleteChecklistButton id={cl.id} title={cl.title} />
                 </div>
               </div>
