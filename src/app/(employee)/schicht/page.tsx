@@ -172,13 +172,27 @@ export default async function SchichtPage() {
 
     const builtSlots: BuiltSlot[] = [];
 
+    function offersFor(courseRoomId: string | null) {
+      if (!courseRoomId) return [...todayOffers].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const room = dayTemplate!.slots.find((sl) => sl.courseRoomId === courseRoomId)?.courseRoom;
+      const actNames = room?.activities.map((a) => a.activityName) || [];
+      return todayOffers
+        .filter((o) => actNames.includes(o.activityName))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+
+    function getEndTime(startTime: string, durationMin: number) {
+      const [h, m] = startTime.split(":").map(Number);
+      const total = h * 60 + m + durationMin;
+      const h2 = Math.floor(total / 60).toString().padStart(2, "0");
+      const m2 = (total % 60).toString().padStart(2, "0");
+      return `${h2}:${m2}`;
+    }
+
     for (const s of dayTemplate.slots) {
-      // Expand course-room-based task slots
-      if (s.type === "task" && s.courseRoomId && s.courseRoom) {
-        const activityNames = s.courseRoom.activities.map((a) => a.activityName);
-        const matching = todayOffers
-          .filter((o) => activityNames.includes(o.activityName))
-          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      // "each" anchor: expand per course (tasks only)
+      if (s.anchor === "each" && s.type === "task") {
+        const matching = offersFor(s.courseRoomId);
 
         if (matching.length === 0) {
           builtSlots.push({
@@ -187,7 +201,7 @@ export default async function SchichtPage() {
             type: "task",
             checklist: null,
             task: {
-              title: `${s.taskTitle || "Aufgabe"} — keine ${s.courseRoom.name}-Kurse heute`,
+              title: `${s.taskTitle || "Aufgabe"} — keine Kurse heute`,
               description: null,
               requiresPhoto: false,
               completed: false,
@@ -218,10 +232,26 @@ export default async function SchichtPage() {
         continue;
       }
 
-      // Resolve time for checklist slots with courseRoomId: X min before first matching course
+      // "first" / "last" anchor: one slot with computed time
       let resolvedTime: string | null = s.time;
       let titleSuffix = "";
-      if (s.type === "checklist" && s.courseRoomId && s.courseRoom) {
+      if (s.anchor === "first" || s.anchor === "last") {
+        const matching = offersFor(s.courseRoomId);
+        if (matching.length > 0) {
+          if (s.anchor === "first") {
+            resolvedTime = adjustTime(matching[0].startTime, -s.leadMinutes);
+          } else {
+            const last = matching[matching.length - 1];
+            resolvedTime = adjustTime(getEndTime(last.startTime, last.durationMin || 45), s.leadMinutes);
+          }
+        } else {
+          resolvedTime = null;
+          titleSuffix = " — keine Kurse heute";
+        }
+      }
+
+      // Legacy compat: old checklist slot with courseRoomId but no anchor (treated as first)
+      if (s.type === "checklist" && s.courseRoomId && s.courseRoom && !s.anchor) {
         const activityNames = s.courseRoom.activities.map((a) => a.activityName);
         const matching = todayOffers
           .filter((o) => activityNames.includes(o.activityName))

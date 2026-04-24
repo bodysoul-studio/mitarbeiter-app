@@ -274,6 +274,7 @@ model DayTemplateSlot {
   taskRequiresPhoto Boolean  @default(false)
   courseRoomId      String?
   leadMinutes       Int      @default(15)
+  anchor            String?
 
   dayTemplate DayTemplate         @relation(fields: [dayTemplateId], references: [id], onDelete: Cascade)
   checklist   Checklist?          @relation(fields: [checklistId], references: [id], onDelete: SetNull)

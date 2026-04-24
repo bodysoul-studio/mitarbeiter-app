@@ -30,6 +30,8 @@ export type ChecklistRef = {
 };
 export type CourseRoomRef = { id: string; name: string; color: string };
 
+export type Anchor = "fixed" | "first" | "last" | "each";
+
 export type Slot = {
   clientId: string;
   time: string;
@@ -41,6 +43,7 @@ export type Slot = {
   taskRequiresPhoto: boolean;
   courseRoomId: string | null;
   leadMinutes: number;
+  anchor: Anchor;
 };
 
 export type Template = {
@@ -111,25 +114,26 @@ function SortableSlot({
 
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex gap-1 bg-slate-900 border border-slate-600 rounded p-0.5">
-              <button
-                type="button"
-                onClick={() => onEdit((s) => ({ ...s, courseRoomId: null }))}
-                className={`text-xs px-2 py-1 rounded transition-colors ${!slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"}`}
-              >
-                Feste Zeit
-              </button>
-              <button
-                type="button"
-                onClick={() => onEdit((s) => ({ ...s, courseRoomId: courseRooms[0]?.id || "" }))}
-                disabled={courseRooms.length === 0}
-                className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-30 ${slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"}`}
-              >
-                {slot.type === "checklist" ? "Vor erstem Kurs" : "Pro Kurs"}
-              </button>
-            </div>
+            <select
+              value={slot.anchor}
+              onChange={(e) => {
+                const newAnchor = e.target.value as Anchor;
+                onEdit((s) => ({
+                  ...s,
+                  anchor: newAnchor,
+                  // clear courseRoomId when switching to fixed
+                  courseRoomId: newAnchor === "fixed" ? null : s.courseRoomId,
+                }));
+              }}
+              className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
+            >
+              <option value="fixed">Feste Zeit</option>
+              <option value="first">Vor erstem Kurs</option>
+              <option value="last">Nach letztem Kurs</option>
+              {slot.type === "task" && <option value="each">Pro Kurs</option>}
+            </select>
 
-            {!slot.courseRoomId && (
+            {slot.anchor === "fixed" && (
               <input
                 type="time"
                 value={slot.time}
@@ -138,13 +142,14 @@ function SortableSlot({
               />
             )}
 
-            {slot.courseRoomId && (
+            {slot.anchor !== "fixed" && (
               <>
                 <select
-                  value={slot.courseRoomId}
-                  onChange={(e) => onEdit((s) => ({ ...s, courseRoomId: e.target.value }))}
+                  value={slot.courseRoomId || ""}
+                  onChange={(e) => onEdit((s) => ({ ...s, courseRoomId: e.target.value || null }))}
                   className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
                 >
+                  <option value="">Alle Kurse</option>
                   {courseRooms.map((r) => (
                     <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
@@ -156,19 +161,23 @@ function SortableSlot({
                     onChange={(e) => onEdit((s) => ({ ...s, leadMinutes: parseInt(e.target.value) || 0 }))}
                     className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500 w-16"
                   />
-                  <span className="text-xs text-slate-400">Min. vorher</span>
+                  <span className="text-xs text-slate-400">
+                    Min. {slot.anchor === "last" ? "danach" : "vorher"}
+                  </span>
                 </div>
               </>
             )}
 
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${slot.type === "checklist" ? "bg-blue-500/15 text-blue-400" : slot.courseRoomId ? "bg-purple-500/15 text-purple-400" : "bg-green-500/15 text-green-400"}`}>
-              {slot.type === "checklist"
-                ? slot.courseRoomId
-                  ? "Checkliste (vor Kurs)"
-                  : "Checkliste"
-                : slot.courseRoomId
-                ? "Pro Kurs"
-                : "Einzel-Aufgabe"}
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              slot.type === "checklist"
+                ? "bg-blue-500/15 text-blue-400"
+                : slot.anchor === "each"
+                ? "bg-purple-500/15 text-purple-400"
+                : slot.anchor !== "fixed"
+                ? "bg-indigo-500/15 text-indigo-400"
+                : "bg-green-500/15 text-green-400"
+            }`}>
+              {slot.type === "checklist" ? "Checkliste" : slot.anchor === "each" ? "Pro Kurs" : "Aufgabe"}
             </span>
           </div>
 
@@ -285,6 +294,7 @@ export function DayTemplateBuilder({
         taskRequiresPhoto: false,
         courseRoomId: null,
         leadMinutes: 15,
+        anchor: "fixed",
       },
     ]);
   }
@@ -302,6 +312,7 @@ export function DayTemplateBuilder({
         taskRequiresPhoto: false,
         courseRoomId: presetRoomId || null,
         leadMinutes: 15,
+        anchor: presetRoomId ? "each" : "fixed",
       },
     ]);
   }
@@ -327,8 +338,9 @@ export function DayTemplateBuilder({
         taskTitle: s.taskTitle || null,
         taskDescription: s.taskDescription || null,
         taskRequiresPhoto: s.taskRequiresPhoto,
-        courseRoomId: s.courseRoomId || null,
+        courseRoomId: s.anchor === "fixed" ? null : s.courseRoomId || null,
         leadMinutes: s.leadMinutes ?? 15,
+        anchor: s.anchor === "fixed" ? null : s.anchor,
       })),
     };
 
@@ -367,19 +379,37 @@ export function DayTemplateBuilder({
     };
     const out: PSlot[] = [];
 
+    function offersFor(courseRoomId: string | null) {
+      if (!courseRoomId) return [...bsportOffers].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const actNames = roomActivities[courseRoomId] || [];
+      return bsportOffers
+        .filter((o) => actNames.includes(o.activityName))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+
+    function getEndTime(o: BsportOffer): string {
+      // Offers don't include endTime, assume 45min default — best we have client-side
+      const [h, m] = o.startTime.split(":").map(Number);
+      const total = h * 60 + m + 45;
+      const h2 = Math.floor(total / 60).toString().padStart(2, "0");
+      const m2 = (total % 60).toString().padStart(2, "0");
+      return `${h2}:${m2}`;
+    }
+
     for (const s of slots) {
-      if (s.type === "task" && s.courseRoomId) {
-        const actNames = roomActivities[s.courseRoomId] || [];
-        const matching = bsportOffers
-          .filter((o) => actNames.includes(o.activityName))
-          .sort((a, b) => a.startTime.localeCompare(b.startTime));
-        const roomName = courseRooms.find((r) => r.id === s.courseRoomId)?.name || "Raum";
+      const roomName = s.courseRoomId
+        ? courseRooms.find((r) => r.id === s.courseRoomId)?.name || "Raum"
+        : "allen Kursen";
+
+      // Per-course expansion (tasks only)
+      if (s.anchor === "each" && s.type === "task") {
+        const matching = offersFor(s.courseRoomId);
         if (matching.length === 0) {
           out.push({
             key: `${s.clientId}:empty`,
             time: null,
             type: "task",
-            title: `${s.taskTitle || "Aufgabe"} — keine ${roomName}-Kurse heute`,
+            title: `${s.taskTitle || "Aufgabe"} — keine Kurse heute`,
             badge: "Pro Kurs",
             badgeColor: "bg-purple-500/15 text-purple-400",
             isEmpty: true,
@@ -400,38 +430,56 @@ export function DayTemplateBuilder({
         }
         continue;
       }
+
+      // First/Last anchor
+      if (s.anchor === "first" || s.anchor === "last") {
+        const matching = offersFor(s.courseRoomId);
+        const cl = s.type === "checklist" ? checklists.find((c) => c.id === s.checklistId) : null;
+        const title = s.type === "checklist" ? cl?.title || s.checklistTitle || "Checkliste" : s.taskTitle || "Aufgabe";
+
+        if (matching.length === 0) {
+          out.push({
+            key: s.clientId,
+            time: null,
+            type: s.type,
+            title: `${title} — keine Kurse heute`,
+            badge: s.anchor === "first" ? "Vor 1. Kurs" : "Nach letztem Kurs",
+            badgeColor: "bg-indigo-500/15 text-indigo-400",
+            itemCount: cl?.itemCount,
+            isEmpty: true,
+          });
+        } else {
+          const resolvedTime =
+            s.anchor === "first"
+              ? adjustTime(matching[0].startTime, -s.leadMinutes)
+              : adjustTime(getEndTime(matching[matching.length - 1]), s.leadMinutes);
+          const ref = s.anchor === "first" ? matching[0].startTime : getEndTime(matching[matching.length - 1]);
+          out.push({
+            key: s.clientId,
+            time: resolvedTime,
+            type: s.type,
+            title,
+            description: s.type === "task" ? s.taskDescription || undefined : undefined,
+            badge: `${s.anchor === "first" ? "Vor 1. Kurs" : "Nach letztem Kurs"} (${roomName}, ${ref})`,
+            badgeColor: "bg-indigo-500/15 text-indigo-400",
+            itemCount: cl?.itemCount,
+            requiresPhoto: s.type === "task" ? s.taskRequiresPhoto : undefined,
+          });
+        }
+        continue;
+      }
+
+      // Fixed time
       if (s.type === "checklist") {
         const cl = checklists.find((c) => c.id === s.checklistId);
-        // Resolve time: if courseRoomId set → first matching course today - leadMinutes
-        let resolvedTime: string | null = s.time || null;
-        let badge = "Checkliste";
-        let badgeColor = "bg-blue-500/15 text-blue-400";
-        let extraTitle = "";
-        if (s.courseRoomId) {
-          const actNames = roomActivities[s.courseRoomId] || [];
-          const matching = bsportOffers
-            .filter((o) => actNames.includes(o.activityName))
-            .sort((a, b) => a.startTime.localeCompare(b.startTime));
-          const roomName = courseRooms.find((r) => r.id === s.courseRoomId)?.name || "Raum";
-          badge = "Vor erstem Kurs";
-          badgeColor = "bg-purple-500/15 text-purple-400";
-          if (matching.length > 0) {
-            resolvedTime = adjustTime(matching[0].startTime, -s.leadMinutes);
-            extraTitle = ` (${s.leadMinutes} Min. vor ${matching[0].startTime})`;
-          } else {
-            resolvedTime = null;
-            extraTitle = ` — keine ${roomName}-Kurse heute`;
-          }
-        }
         out.push({
           key: s.clientId,
-          time: resolvedTime,
+          time: s.time || null,
           type: "checklist",
-          title: (cl?.title || s.checklistTitle || "Checkliste") + extraTitle,
-          badge,
-          badgeColor,
+          title: cl?.title || s.checklistTitle || "Checkliste",
+          badge: "Checkliste",
+          badgeColor: "bg-blue-500/15 text-blue-400",
           itemCount: cl?.itemCount,
-          isEmpty: s.courseRoomId ? resolvedTime === null : false,
         });
       } else {
         out.push({

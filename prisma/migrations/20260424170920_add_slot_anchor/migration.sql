@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "day_template_slots" ADD COLUMN "anchor" TEXT;
