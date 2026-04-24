@@ -63,6 +63,12 @@ export default async function TagesplanPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Link
+                  href={`/admin/tagesplan/${t.id}/vorschau`}
+                  className="px-3 py-1 text-sm bg-purple-600/20 text-purple-400 hover:bg-purple-600/40 rounded transition-colors"
+                >
+                  Vorschau
+                </Link>
+                <Link
                   href={`/admin/tagesplan/${t.id}`}
                   className="px-3 py-1 text-sm bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded transition-colors"
                 >
