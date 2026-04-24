@@ -60,6 +60,12 @@ function makeId() {
   return Math.random().toString(36).slice(2);
 }
 
+function getShiftWindow(shiftType: string): { start: string; end: string } {
+  if (shiftType === "frueh") return { start: "00:00", end: "13:00" };
+  if (shiftType === "spaet") return { start: "13:00", end: "23:59" };
+  return { start: "00:00", end: "23:59" };
+}
+
 function adjustTime(time: string, minutes: number): string {
   const [h, m] = time.split(":").map(Number);
   let total = h * 60 + m + minutes;
@@ -386,10 +392,15 @@ export function DayTemplateBuilder({
     };
     const out: PSlot[] = [];
 
+    const window = getShiftWindow(shiftType);
+    const filteredOffers = bsportOffers.filter(
+      (o) => o.startTime >= window.start && o.startTime < window.end
+    );
+
     function offersFor(courseRoomId: string | null) {
-      if (!courseRoomId) return [...bsportOffers].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      if (!courseRoomId) return [...filteredOffers].sort((a, b) => a.startTime.localeCompare(b.startTime));
       const actNames = roomActivities[courseRoomId] || [];
-      return bsportOffers
+      return filteredOffers
         .filter((o) => actNames.includes(o.activityName))
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
     }
@@ -502,14 +513,21 @@ export function DayTemplateBuilder({
       }
     }
 
-    out.sort((a, b) => {
+    // Filter by shift window — exclude slots outside the time window
+    const filtered = out.filter((slot) => {
+      if (!slot.time) return true; // keep empty/placeholder slots
+      if (slot.isEmpty) return true;
+      return slot.time >= window.start && slot.time < window.end;
+    });
+
+    filtered.sort((a, b) => {
       if (!a.time && !b.time) return 0;
       if (!a.time) return 1;
       if (!b.time) return -1;
       return a.time.localeCompare(b.time);
     });
-    return out;
-  }, [slots, bsportOffers, roomActivities, checklists, courseRooms]);
+    return filtered;
+  }, [slots, bsportOffers, roomActivities, checklists, courseRooms, shiftType]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr_360px] gap-4">

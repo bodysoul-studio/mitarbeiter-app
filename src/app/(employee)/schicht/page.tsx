@@ -172,11 +172,22 @@ export default async function SchichtPage() {
 
     const builtSlots: BuiltSlot[] = [];
 
+    // Shift window: Frühschicht = 00:00-13:00, Spätschicht = 13:00-23:59
+    const window =
+      dayTemplate.shiftType === "frueh"
+        ? { start: "00:00", end: "13:00" }
+        : dayTemplate.shiftType === "spaet"
+        ? { start: "13:00", end: "23:59" }
+        : { start: "00:00", end: "23:59" };
+    const filteredOffers = todayOffers.filter(
+      (o) => o.startTime >= window.start && o.startTime < window.end
+    );
+
     function offersFor(courseRoomId: string | null) {
-      if (!courseRoomId) return [...todayOffers].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      if (!courseRoomId) return [...filteredOffers].sort((a, b) => a.startTime.localeCompare(b.startTime));
       const room = dayTemplate!.slots.find((sl) => sl.courseRoomId === courseRoomId)?.courseRoom;
       const actNames = room?.activities.map((a) => a.activityName) || [];
-      return todayOffers
+      return filteredOffers
         .filter((o) => actNames.includes(o.activityName))
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
     }
@@ -303,12 +314,19 @@ export default async function SchichtPage() {
     }
 
     // Sort by time (slots without time stay at end, preserving order)
-    builtSlots.sort((a, b) => {
+    // Filter slots outside the shift window (preserve placeholders without time)
+    const finalSlots = builtSlots.filter((slot) => {
+      if (!slot.time) return true;
+      return slot.time >= window.start && slot.time < window.end;
+    });
+    finalSlots.sort((a, b) => {
       if (!a.time && !b.time) return 0;
       if (!a.time) return 1;
       if (!b.time) return -1;
       return a.time.localeCompare(b.time);
     });
+    builtSlots.length = 0;
+    builtSlots.push(...finalSlots);
 
     templateData = {
       id: dayTemplate.id,

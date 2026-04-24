@@ -54,9 +54,18 @@ export default async function VorschauPage({
 
   // Load bsport offers for target date
   const hasCourseSlots = template.slots.some((s) => s.courseRoomId);
-  const offers = hasCourseSlots
+  const offersRaw = hasCourseSlots
     ? await loadBsportOffers(targetDate, targetDate).catch(() => [])
     : [];
+  const shiftWindow =
+    template.shiftType === "frueh"
+      ? { start: "00:00", end: "13:00" }
+      : template.shiftType === "spaet"
+      ? { start: "13:00", end: "23:59" }
+      : { start: "00:00", end: "23:59" };
+  const offers = offersRaw.filter(
+    (o) => o.startTime >= shiftWindow.start && o.startTime < shiftWindow.end
+  );
 
   type PreviewSlot = {
     id: string;
@@ -162,6 +171,20 @@ export default async function VorschauPage({
       });
     }
   }
+
+  // Filter by shift window
+  const window =
+    template.shiftType === "frueh"
+      ? { start: "00:00", end: "13:00" }
+      : template.shiftType === "spaet"
+      ? { start: "13:00", end: "23:59" }
+      : { start: "00:00", end: "23:59" };
+  const filteredSlots = builtSlots.filter((slot) => {
+    if (!slot.time) return true;
+    return slot.time >= window.start && slot.time < window.end;
+  });
+  builtSlots.length = 0;
+  builtSlots.push(...filteredSlots);
 
   builtSlots.sort((a, b) => {
     if (!a.time && !b.time) return 0;
