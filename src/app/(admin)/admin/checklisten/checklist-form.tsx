@@ -85,6 +85,53 @@ export function ChecklistForm({
     setItems([...items.slice(0, insertAfter + 1), newItem, ...items.slice(insertAfter + 1)]);
   }
 
+  function moveChild(clientId: string, direction: -1 | 1) {
+    const target = items.find((i) => i.clientId === clientId);
+    if (!target || !target.parentClientId) return;
+    const siblings = items.filter((i) => i.parentClientId === target.parentClientId);
+    const idx = siblings.findIndex((s) => s.clientId === clientId);
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= siblings.length) return;
+
+    const reorderedSiblings = [...siblings];
+    [reorderedSiblings[idx], reorderedSiblings[newIdx]] = [reorderedSiblings[newIdx], reorderedSiblings[idx]];
+
+    // Rebuild items: parents + their (newly ordered) children
+    const parents = items.filter((i) => !i.parentClientId);
+    const reordered: EditorItem[] = [];
+    for (const p of parents) {
+      reordered.push(p);
+      if (p.clientId === target.parentClientId) {
+        reordered.push(...reorderedSiblings);
+      } else {
+        reordered.push(...items.filter((i) => i.parentClientId === p.clientId));
+      }
+    }
+    setItems(reordered);
+  }
+
+  function moveParent(clientId: string, direction: -1 | 1) {
+    // Extract parent + its children as a block, then move block up/down
+    const parents = items.filter((i) => !i.parentClientId);
+    const idx = parents.findIndex((p) => p.clientId === clientId);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= parents.length) return;
+
+    // Swap the two parent blocks (parent + children)
+    const reorderedParents = [...parents];
+    [reorderedParents[idx], reorderedParents[newIdx]] = [reorderedParents[newIdx], reorderedParents[idx]];
+
+    // Rebuild items array in new parent order, with their children in place
+    const reordered: EditorItem[] = [];
+    for (const p of reorderedParents) {
+      reordered.push(p);
+      const children = items.filter((i) => i.parentClientId === p.clientId);
+      reordered.push(...children);
+    }
+    setItems(reordered);
+  }
+
   function removeItem(clientId: string) {
     // Also remove all children
     setItems(items.filter((i) => i.clientId !== clientId && i.parentClientId !== clientId));
@@ -231,13 +278,37 @@ export function ChecklistForm({
               <div key={parent.clientId} className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-blue-400 font-medium">Hauptpunkt {pIdx + 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(parent.clientId)}
-                    className="text-xs text-red-400 hover:text-red-300"
-                  >
-                    Entfernen
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => moveParent(parent.clientId, -1)}
+                      disabled={pIdx === 0}
+                      className="p-1 rounded hover:bg-slate-700 text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Nach oben"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveParent(parent.clientId, 1)}
+                      disabled={pIdx === parents.length - 1}
+                      className="p-1 rounded hover:bg-slate-700 text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Nach unten"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(parent.clientId)}
+                      className="text-xs text-red-400 hover:text-red-300 ml-2"
+                    >
+                      Entfernen
+                    </button>
+                  </div>
                 </div>
                 <input
                   type="text"
@@ -270,13 +341,37 @@ export function ChecklistForm({
                       <div key={child.clientId} className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-400">Unterpunkt {cIdx + 1}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeItem(child.clientId)}
-                            className="text-xs text-red-400 hover:text-red-300"
-                          >
-                            Entfernen
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveChild(child.clientId, -1)}
+                              disabled={cIdx === 0}
+                              className="p-1 rounded hover:bg-slate-700 text-slate-400 disabled:opacity-30"
+                              title="Nach oben"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveChild(child.clientId, 1)}
+                              disabled={cIdx === children.length - 1}
+                              className="p-1 rounded hover:bg-slate-700 text-slate-400 disabled:opacity-30"
+                              title="Nach unten"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(child.clientId)}
+                              className="text-xs text-red-400 hover:text-red-300 ml-1"
+                            >
+                              Entfernen
+                            </button>
+                          </div>
                         </div>
                         <input
                           type="text"
