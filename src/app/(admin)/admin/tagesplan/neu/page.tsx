@@ -6,7 +6,7 @@ export default async function NeuerTagesplanPage() {
     prisma.role.findMany({ orderBy: { name: "asc" } }),
     prisma.checklist.findMany({
       where: { isActive: true },
-      include: { role: { select: { name: true } } },
+      include: { role: { select: { name: true } }, _count: { select: { items: true } } },
       orderBy: [{ role: { name: "asc" } }, { title: "asc" }],
     }),
     prisma.courseRoom.findMany({ orderBy: { name: "asc" } }),
@@ -17,6 +17,7 @@ export default async function NeuerTagesplanPage() {
     title: c.title,
     roleId: c.roleId,
     roleName: c.role?.name,
+    itemCount: c._count.items,
   }));
   const roomRefs = courseRooms.map((r) => ({ id: r.id, name: r.name, color: r.color }));
 

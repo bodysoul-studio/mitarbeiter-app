@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -21,7 +21,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 export type Role = { id: string; name: string };
-export type ChecklistRef = { id: string; title: string; roleId: string; roleName?: string };
+export type ChecklistRef = {
+  id: string;
+  title: string;
+  roleId: string;
+  roleName?: string;
+  itemCount?: number;
+};
 export type CourseRoomRef = { id: string; name: string; color: string };
 
 export type Slot = {
@@ -45,8 +51,20 @@ export type Template = {
   slots: Slot[];
 };
 
+type BsportOffer = { id: number; activityName: string; startTime: string; date: string };
+
 function makeId() {
   return Math.random().toString(36).slice(2);
+}
+
+function adjustTime(time: string, minutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  let total = h * 60 + m + minutes;
+  if (total < 0) total = 0;
+  if (total >= 24 * 60) total = 23 * 60 + 59;
+  const newH = Math.floor(total / 60).toString().padStart(2, "0");
+  const newM = (total % 60).toString().padStart(2, "0");
+  return `${newH}:${newM}`;
 }
 
 function SortableSlot({
@@ -77,7 +95,6 @@ function SortableSlot({
       className={`bg-slate-800 border border-slate-700 rounded-lg p-3 ${isDragging ? "ring-2 ring-blue-500" : ""}`}
     >
       <div className="flex items-start gap-2">
-        {/* Drag handle */}
         <button
           {...attributes}
           {...listeners}
@@ -93,16 +110,13 @@ function SortableSlot({
         <span className="text-xs text-slate-500 mt-2 w-6">#{index + 1}</span>
 
         <div className="flex-1 space-y-2">
-          {/* Time/Room toggle + Type */}
           <div className="flex items-center gap-2 flex-wrap">
             {slot.type === "task" && (
               <div className="flex gap-1 bg-slate-900 border border-slate-600 rounded p-0.5">
                 <button
                   type="button"
                   onClick={() => onEdit((s) => ({ ...s, courseRoomId: null }))}
-                  className={`text-xs px-2 py-1 rounded transition-colors ${
-                    !slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"
-                  }`}
+                  className={`text-xs px-2 py-1 rounded transition-colors ${!slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"}`}
                 >
                   Feste Zeit
                 </button>
@@ -110,9 +124,7 @@ function SortableSlot({
                   type="button"
                   onClick={() => onEdit((s) => ({ ...s, courseRoomId: courseRooms[0]?.id || "" }))}
                   disabled={courseRooms.length === 0}
-                  className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-30 ${
-                    slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"
-                  }`}
+                  className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-30 ${slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"}`}
                 >
                   Pro Kurs
                 </button>
@@ -148,24 +160,13 @@ function SortableSlot({
                 </div>
               </>
             )}
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                slot.type === "checklist"
-                  ? "bg-blue-500/15 text-blue-400"
-                  : slot.courseRoomId
-                  ? "bg-purple-500/15 text-purple-400"
-                  : "bg-green-500/15 text-green-400"
-              }`}
-            >
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${slot.type === "checklist" ? "bg-blue-500/15 text-blue-400" : slot.courseRoomId ? "bg-purple-500/15 text-purple-400" : "bg-green-500/15 text-green-400"}`}>
               {slot.type === "checklist" ? "Checkliste" : slot.courseRoomId ? "Pro Kurs" : "Einzel-Aufgabe"}
             </span>
           </div>
 
-          {/* Content */}
           {slot.type === "checklist" ? (
-            <p className="text-sm text-white font-medium">
-              {slot.checklistTitle || "Checkliste nicht gefunden"}
-            </p>
+            <p className="text-sm text-white font-medium">{slot.checklistTitle || "Checkliste nicht gefunden"}</p>
           ) : (
             <div className="space-y-2">
               <input
@@ -194,11 +195,7 @@ function SortableSlot({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-xs text-red-400 hover:text-red-300 mt-1"
-        >
+        <button type="button" onClick={onRemove} className="text-xs text-red-400 hover:text-red-300 mt-1">
           Entfernen
         </button>
       </div>
@@ -225,6 +222,31 @@ export function DayTemplateBuilder({
     template?.slots.map((s) => ({ ...s, clientId: makeId() })) || []
   );
   const [saving, setSaving] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<"task" | "checklist">("task");
+  const [bsportOffers, setBsportOffers] = useState<BsportOffer[]>([]);
+  const [roomActivities, setRoomActivities] = useState<Record<string, string[]>>({});
+
+  // Load bsport offers for today (live preview)
+  useEffect(() => {
+    fetch(`/api/admin/bsport-today`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: BsportOffer[]) => setBsportOffers(data))
+      .catch(() => {});
+  }, []);
+
+  // Load course room activities once
+  useEffect(() => {
+    fetch("/api/admin/course-rooms")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rooms: { id: string; activities: { activityName: string }[] }[]) => {
+        const map: Record<string, string[]> = {};
+        for (const r of rooms) {
+          map[r.id] = r.activities.map((a) => a.activityName);
+        }
+        setRoomActivities(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -260,7 +282,7 @@ export function DayTemplateBuilder({
     ]);
   }
 
-  function addTaskSlot() {
+  function addTaskSlot(presetRoomId?: string) {
     setSlots([
       ...slots,
       {
@@ -271,7 +293,7 @@ export function DayTemplateBuilder({
         taskTitle: "",
         taskDescription: "",
         taskRequiresPhoto: false,
-        courseRoomId: null,
+        courseRoomId: presetRoomId || null,
         leadMinutes: 15,
       },
     ]);
@@ -305,7 +327,6 @@ export function DayTemplateBuilder({
 
     const url = template?.id ? `/api/admin/day-templates/${template.id}` : "/api/admin/day-templates";
     const method = template?.id ? "PUT" : "POST";
-
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
@@ -321,14 +342,94 @@ export function DayTemplateBuilder({
     }
   }
 
-  // Filter checklists by selected role (show all if no role selected)
-  const availableChecklists = roleId
-    ? checklists.filter((c) => c.roleId === roleId)
-    : checklists;
+  const availableChecklists = roleId ? checklists.filter((c) => c.roleId === roleId) : checklists;
+
+  // Preview slots (sorted + expanded with bsport courses)
+  const previewSlots = useMemo(() => {
+    type PSlot = {
+      key: string;
+      time: string | null;
+      type: "checklist" | "task";
+      title: string;
+      description?: string;
+      badge: string;
+      badgeColor: string;
+      itemCount?: number;
+      isEmpty?: boolean;
+      requiresPhoto?: boolean;
+    };
+    const out: PSlot[] = [];
+
+    for (const s of slots) {
+      if (s.type === "task" && s.courseRoomId) {
+        const actNames = roomActivities[s.courseRoomId] || [];
+        const matching = bsportOffers
+          .filter((o) => actNames.includes(o.activityName))
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        const roomName = courseRooms.find((r) => r.id === s.courseRoomId)?.name || "Raum";
+        if (matching.length === 0) {
+          out.push({
+            key: `${s.clientId}:empty`,
+            time: null,
+            type: "task",
+            title: `${s.taskTitle || "Aufgabe"} — keine ${roomName}-Kurse heute`,
+            badge: "Pro Kurs",
+            badgeColor: "bg-purple-500/15 text-purple-400",
+            isEmpty: true,
+          });
+        } else {
+          for (const offer of matching) {
+            out.push({
+              key: `${s.clientId}:${offer.id}`,
+              time: adjustTime(offer.startTime, -s.leadMinutes),
+              type: "task",
+              title: `${s.taskTitle || "Aufgabe"} (${offer.startTime} ${offer.activityName})`,
+              description: s.taskDescription || undefined,
+              badge: "Pro Kurs",
+              badgeColor: "bg-purple-500/15 text-purple-400",
+              requiresPhoto: s.taskRequiresPhoto,
+            });
+          }
+        }
+        continue;
+      }
+      if (s.type === "checklist") {
+        const cl = checklists.find((c) => c.id === s.checklistId);
+        out.push({
+          key: s.clientId,
+          time: s.time || null,
+          type: "checklist",
+          title: cl?.title || s.checklistTitle || "Checkliste",
+          badge: "Checkliste",
+          badgeColor: "bg-blue-500/15 text-blue-400",
+          itemCount: cl?.itemCount,
+        });
+      } else {
+        out.push({
+          key: s.clientId,
+          time: s.time || null,
+          type: "task",
+          title: s.taskTitle || "(leere Aufgabe)",
+          description: s.taskDescription || undefined,
+          badge: "Aufgabe",
+          badgeColor: "bg-green-500/15 text-green-400",
+          requiresPhoto: s.taskRequiresPhoto,
+        });
+      }
+    }
+
+    out.sort((a, b) => {
+      if (!a.time && !b.time) return 0;
+      if (!a.time) return 1;
+      if (!b.time) return -1;
+      return a.time.localeCompare(b.time);
+    });
+    return out;
+  }, [slots, bsportOffers, roomActivities, checklists, courseRooms]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 max-w-6xl">
-      {/* Left: Config + library */}
+    <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr_360px] gap-4">
+      {/* Left: Settings + Library */}
       <div className="space-y-4">
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-3">
           <h2 className="text-sm font-semibold text-slate-400">Einstellungen</h2>
@@ -371,44 +472,85 @@ export function DayTemplateBuilder({
           </div>
         </div>
 
-        {/* Library */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-400">Hinzufügen</h2>
-          <button
-            type="button"
-            onClick={addTaskSlot}
-            className="w-full px-3 py-2 bg-green-600/20 hover:bg-green-600/40 text-green-400 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Einzel-Aufgabe
-          </button>
+        {/* Library Tabs */}
+        <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+          <div className="flex border-b border-slate-700">
+            <button
+              type="button"
+              onClick={() => setLibraryTab("task")}
+              className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                libraryTab === "task" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Einzel-Aufgaben
+            </button>
+            <button
+              type="button"
+              onClick={() => setLibraryTab("checklist")}
+              className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                libraryTab === "checklist" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Checklisten
+            </button>
+          </div>
 
-          <div className="border-t border-slate-700/50 pt-3">
-            <p className="text-xs text-slate-400 mb-2">Checkliste einfügen:</p>
-            <div className="space-y-1 max-h-80 overflow-y-auto">
-              {availableChecklists.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-3">Keine Checklisten</p>
-              ) : (
-                availableChecklists.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => addChecklistSlot(c.id)}
-                    className="w-full text-left px-3 py-2 bg-slate-900/50 hover:bg-blue-600/20 border border-slate-700 hover:border-blue-500/50 rounded text-sm text-white transition-colors"
-                  >
-                    <span className="block font-medium">{c.title}</span>
-                    {c.roleName && <span className="block text-xs text-slate-400">{c.roleName}</span>}
-                  </button>
-                ))
-              )}
-            </div>
+          <div className="p-3 space-y-2">
+            {libraryTab === "task" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => addTaskSlot()}
+                  className="w-full px-3 py-2 bg-green-600/20 hover:bg-green-600/40 text-green-400 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Aufgabe (feste Zeit)
+                </button>
+                {courseRooms.length > 0 && (
+                  <div className="pt-2 border-t border-slate-700/50">
+                    <p className="text-xs text-slate-400 mb-2">Pro-Kurs-Aufgabe (bsport):</p>
+                    <div className="space-y-1">
+                      {courseRooms.map((r) => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => addTaskSlot(r.id)}
+                          className="w-full text-left px-3 py-2 bg-slate-900/50 hover:bg-purple-600/20 border border-slate-700 hover:border-purple-500/50 rounded text-sm text-white transition-colors flex items-center gap-2"
+                        >
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: r.color }} />
+                          <span>{r.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-1 max-h-96 overflow-y-auto">
+                {availableChecklists.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-4">Keine Checklisten verfügbar</p>
+                ) : (
+                  availableChecklists.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => addChecklistSlot(c.id)}
+                      className="w-full text-left px-3 py-2 bg-slate-900/50 hover:bg-blue-600/20 border border-slate-700 hover:border-blue-500/50 rounded text-sm text-white transition-colors"
+                    >
+                      <span className="block font-medium">{c.title}</span>
+                      {c.roleName && <span className="block text-xs text-slate-400">{c.roleName}</span>}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Right: Builder */}
+      {/* Middle: Builder */}
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Tagesablauf</h2>
@@ -416,10 +558,8 @@ export function DayTemplateBuilder({
         </div>
 
         {slots.length === 0 ? (
-          <div className="bg-slate-800/50 border border-dashed border-slate-600 rounded-lg p-12 text-center">
-            <p className="text-slate-500 text-sm">
-              Füge Einzel-Aufgaben oder Checklisten aus der linken Leiste hinzu.
-            </p>
+          <div className="bg-slate-800/50 border border-dashed border-slate-600 rounded-lg p-8 text-center">
+            <p className="text-slate-500 text-sm">Füge Blöcke aus der linken Leiste hinzu.</p>
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -455,6 +595,72 @@ export function DayTemplateBuilder({
           >
             Abbrechen
           </button>
+        </div>
+      </div>
+
+      {/* Right: Live Preview */}
+      <div>
+        <div className="sticky top-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Mitarbeiter-Ansicht</h2>
+            <span className="text-xs text-slate-500">Live · heute</span>
+          </div>
+
+          <div className="bg-slate-950 border-2 border-slate-700 rounded-2xl overflow-hidden shadow-xl">
+            <div className="bg-slate-900 border-b border-slate-800 px-3 py-1.5 flex items-center justify-between">
+              <span className="text-[10px] text-slate-500">{new Date().toLocaleDateString("de-DE")}</span>
+              <span className="text-[10px] text-slate-500">Vorschau</span>
+            </div>
+            <div className="p-3 space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+              <div>
+                <h3 className="text-sm font-bold text-white">{name || "Ohne Name"}</h3>
+                <p className="text-[10px] text-slate-400">{previewSlots.length} Blöcke</p>
+              </div>
+
+              {previewSlots.length === 0 ? (
+                <p className="text-slate-500 text-center py-6 text-xs">Keine Blöcke</p>
+              ) : (
+                previewSlots.map((slot) => (
+                  <div
+                    key={slot.key}
+                    className={`bg-slate-800 border rounded-lg p-2 ${
+                      slot.isEmpty
+                        ? "border-slate-700/50 opacity-60"
+                        : slot.badge === "Checkliste"
+                        ? "border-blue-500/30"
+                        : slot.badge === "Pro Kurs"
+                        ? "border-purple-500/30"
+                        : "border-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="w-4 h-4 mt-0.5 rounded border-2 border-slate-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {slot.time && <span className="text-xs text-slate-400 font-mono">{slot.time}</span>}
+                          <span className={`text-xs font-medium ${slot.isEmpty ? "text-slate-500" : "text-white"}`}>
+                            {slot.title}
+                          </span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${slot.badgeColor}`}>
+                            {slot.badge}
+                          </span>
+                          {slot.itemCount !== undefined && (
+                            <span className="text-[10px] text-slate-500 ml-auto">{slot.itemCount} Punkte</span>
+                          )}
+                        </div>
+                        {slot.description && (
+                          <p className="text-[10px] text-slate-400 mt-0.5">{slot.description}</p>
+                        )}
+                        {slot.requiresPhoto && (
+                          <p className="text-[10px] text-amber-400 mt-0.5">Foto erforderlich</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
