@@ -240,15 +240,22 @@ export function DayTemplateBuilder({
   const [saving, setSaving] = useState(false);
   const [libraryTab, setLibraryTab] = useState<"task" | "checklist">("task");
   const [bsportOffers, setBsportOffers] = useState<BsportOffer[]>([]);
+  const [previewDate, setPreviewDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
+  });
+  const [loadingOffers, setLoadingOffers] = useState(false);
   const [roomActivities, setRoomActivities] = useState<Record<string, string[]>>({});
 
-  // Load bsport offers for today (live preview)
+  // Load bsport offers for preview date (live preview)
   useEffect(() => {
-    fetch(`/api/admin/bsport-today`)
+    setLoadingOffers(true);
+    fetch(`/api/admin/bsport-today?date=${previewDate}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data: BsportOffer[]) => setBsportOffers(data))
-      .catch(() => {});
-  }, []);
+      .catch(() => setBsportOffers([]))
+      .finally(() => setLoadingOffers(false));
+  }, [previewDate]);
 
   // Load course room activities once
   useEffect(() => {
@@ -680,12 +687,56 @@ export function DayTemplateBuilder({
         <div className="sticky top-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Mitarbeiter-Ansicht</h2>
-            <span className="text-xs text-slate-500">Live · heute</span>
+            <span className="text-xs text-slate-500">{loadingOffers ? "Lade Kurse..." : `${bsportOffers.length} Kurse`}</span>
+          </div>
+
+          {/* Date picker for preview */}
+          <div className="flex items-center gap-1 mb-3 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                const [y, m, d] = previewDate.split("-").map(Number);
+                const dt = new Date(y, m - 1, d - 1);
+                setPreviewDate(`${dt.getFullYear()}-${(dt.getMonth() + 1).toString().padStart(2, "0")}-${dt.getDate().toString().padStart(2, "0")}`);
+              }}
+              className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-xs hover:bg-slate-700"
+            >
+              ←
+            </button>
+            <input
+              type="date"
+              value={previewDate}
+              onChange={(e) => setPreviewDate(e.target.value)}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const [y, m, d] = previewDate.split("-").map(Number);
+                const dt = new Date(y, m - 1, d + 1);
+                setPreviewDate(`${dt.getFullYear()}-${(dt.getMonth() + 1).toString().padStart(2, "0")}-${dt.getDate().toString().padStart(2, "0")}`);
+              }}
+              className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-xs hover:bg-slate-700"
+            >
+              →
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const d = new Date();
+                setPreviewDate(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`);
+              }}
+              className="px-2 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded text-xs"
+            >
+              Heute
+            </button>
           </div>
 
           <div className="bg-slate-950 border-2 border-slate-700 rounded-2xl overflow-hidden shadow-xl">
             <div className="bg-slate-900 border-b border-slate-800 px-3 py-1.5 flex items-center justify-between">
-              <span className="text-[10px] text-slate-500">{new Date().toLocaleDateString("de-DE")}</span>
+              <span className="text-[10px] text-slate-500">
+                {new Date(previewDate).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}
+              </span>
               <span className="text-[10px] text-slate-500">Vorschau</span>
             </div>
             <div className="p-3 space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
