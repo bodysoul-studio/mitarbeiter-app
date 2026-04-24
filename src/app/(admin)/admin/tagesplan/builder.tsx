@@ -111,26 +111,25 @@ function SortableSlot({
 
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            {slot.type === "task" && (
-              <div className="flex gap-1 bg-slate-900 border border-slate-600 rounded p-0.5">
-                <button
-                  type="button"
-                  onClick={() => onEdit((s) => ({ ...s, courseRoomId: null }))}
-                  className={`text-xs px-2 py-1 rounded transition-colors ${!slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"}`}
-                >
-                  Feste Zeit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onEdit((s) => ({ ...s, courseRoomId: courseRooms[0]?.id || "" }))}
-                  disabled={courseRooms.length === 0}
-                  className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-30 ${slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"}`}
-                >
-                  Pro Kurs
-                </button>
-              </div>
-            )}
-            {(!slot.courseRoomId || slot.type === "checklist") && (
+            <div className="flex gap-1 bg-slate-900 border border-slate-600 rounded p-0.5">
+              <button
+                type="button"
+                onClick={() => onEdit((s) => ({ ...s, courseRoomId: null }))}
+                className={`text-xs px-2 py-1 rounded transition-colors ${!slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"}`}
+              >
+                Feste Zeit
+              </button>
+              <button
+                type="button"
+                onClick={() => onEdit((s) => ({ ...s, courseRoomId: courseRooms[0]?.id || "" }))}
+                disabled={courseRooms.length === 0}
+                className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-30 ${slot.courseRoomId ? "bg-blue-600 text-white" : "text-slate-400"}`}
+              >
+                {slot.type === "checklist" ? "Vor erstem Kurs" : "Pro Kurs"}
+              </button>
+            </div>
+
+            {!slot.courseRoomId && (
               <input
                 type="time"
                 value={slot.time}
@@ -138,7 +137,8 @@ function SortableSlot({
                 className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500 w-24"
               />
             )}
-            {slot.courseRoomId && slot.type === "task" && (
+
+            {slot.courseRoomId && (
               <>
                 <select
                   value={slot.courseRoomId}
@@ -160,8 +160,15 @@ function SortableSlot({
                 </div>
               </>
             )}
+
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${slot.type === "checklist" ? "bg-blue-500/15 text-blue-400" : slot.courseRoomId ? "bg-purple-500/15 text-purple-400" : "bg-green-500/15 text-green-400"}`}>
-              {slot.type === "checklist" ? "Checkliste" : slot.courseRoomId ? "Pro Kurs" : "Einzel-Aufgabe"}
+              {slot.type === "checklist"
+                ? slot.courseRoomId
+                  ? "Checkliste (vor Kurs)"
+                  : "Checkliste"
+                : slot.courseRoomId
+                ? "Pro Kurs"
+                : "Einzel-Aufgabe"}
             </span>
           </div>
 
@@ -395,14 +402,36 @@ export function DayTemplateBuilder({
       }
       if (s.type === "checklist") {
         const cl = checklists.find((c) => c.id === s.checklistId);
+        // Resolve time: if courseRoomId set → first matching course today - leadMinutes
+        let resolvedTime: string | null = s.time || null;
+        let badge = "Checkliste";
+        let badgeColor = "bg-blue-500/15 text-blue-400";
+        let extraTitle = "";
+        if (s.courseRoomId) {
+          const actNames = roomActivities[s.courseRoomId] || [];
+          const matching = bsportOffers
+            .filter((o) => actNames.includes(o.activityName))
+            .sort((a, b) => a.startTime.localeCompare(b.startTime));
+          const roomName = courseRooms.find((r) => r.id === s.courseRoomId)?.name || "Raum";
+          badge = "Vor erstem Kurs";
+          badgeColor = "bg-purple-500/15 text-purple-400";
+          if (matching.length > 0) {
+            resolvedTime = adjustTime(matching[0].startTime, -s.leadMinutes);
+            extraTitle = ` (${s.leadMinutes} Min. vor ${matching[0].startTime})`;
+          } else {
+            resolvedTime = null;
+            extraTitle = ` — keine ${roomName}-Kurse heute`;
+          }
+        }
         out.push({
           key: s.clientId,
-          time: s.time || null,
+          time: resolvedTime,
           type: "checklist",
-          title: cl?.title || s.checklistTitle || "Checkliste",
-          badge: "Checkliste",
-          badgeColor: "bg-blue-500/15 text-blue-400",
+          title: (cl?.title || s.checklistTitle || "Checkliste") + extraTitle,
+          badge,
+          badgeColor,
           itemCount: cl?.itemCount,
+          isEmpty: s.courseRoomId ? resolvedTime === null : false,
         });
       } else {
         out.push({

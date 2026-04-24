@@ -218,15 +218,31 @@ export default async function SchichtPage() {
         continue;
       }
 
+      // Resolve time for checklist slots with courseRoomId: X min before first matching course
+      let resolvedTime: string | null = s.time;
+      let titleSuffix = "";
+      if (s.type === "checklist" && s.courseRoomId && s.courseRoom) {
+        const activityNames = s.courseRoom.activities.map((a) => a.activityName);
+        const matching = todayOffers
+          .filter((o) => activityNames.includes(o.activityName))
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        if (matching.length > 0) {
+          resolvedTime = adjustTime(matching[0].startTime, -s.leadMinutes);
+        } else {
+          resolvedTime = null;
+          titleSuffix = ` — keine ${s.courseRoom.name}-Kurse heute`;
+        }
+      }
+
       // Normal slot (fixed time or checklist)
       builtSlots.push({
         id: s.id,
-        time: s.time,
+        time: resolvedTime,
         type: s.type as "checklist" | "task",
         checklist: s.checklist
           ? {
               id: s.checklist.id,
-              title: s.checklist.title,
+              title: s.checklist.title + titleSuffix,
               roleName: s.checklist.role?.name || "",
               roleColor: s.checklist.role?.color || null,
               items: s.checklist.items.map((item) => ({

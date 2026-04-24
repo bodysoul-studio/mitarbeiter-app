@@ -118,11 +118,26 @@ export default async function VorschauPage({
     }
 
     if (s.type === "checklist" && s.checklist) {
+      let resolvedTime: string | null = s.time;
+      let extra = "";
+      if (s.courseRoomId && s.courseRoom) {
+        const activityNames = s.courseRoom.activities.map((a) => a.activityName);
+        const matching = offers
+          .filter((o) => activityNames.includes(o.activityName))
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        if (matching.length > 0) {
+          resolvedTime = adjustTime(matching[0].startTime, -s.leadMinutes);
+          extra = ` (${s.leadMinutes} Min. vor ${matching[0].startTime})`;
+        } else {
+          resolvedTime = null;
+          extra = ` — keine ${s.courseRoom.name}-Kurse heute`;
+        }
+      }
       builtSlots.push({
         id: s.id,
-        time: s.time,
+        time: resolvedTime,
         type: "checklist",
-        title: s.checklist.title,
+        title: s.checklist.title + extra,
         description: null,
         roleName: s.checklist.role?.name,
         roleColor: s.checklist.role?.color,
@@ -134,6 +149,7 @@ export default async function VorschauPage({
           description: i.description,
           requiresPhoto: i.requiresPhoto,
         })),
+        isEmpty: s.courseRoomId ? resolvedTime === null : false,
       });
     } else {
       builtSlots.push({
