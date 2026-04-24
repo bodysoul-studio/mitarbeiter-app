@@ -56,6 +56,7 @@ model Role {
   checklists       Checklist[]
   shiftAssignments ShiftAssignment[]
   shiftRules       ShiftRule[]
+  dayTemplates     DayTemplate[]
 
   @@map("roles")
 }
@@ -74,8 +75,9 @@ model Checklist {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  role  Role            @relation(fields: [roleId], references: [id])
-  items ChecklistItem[]
+  role             Role              @relation(fields: [roleId], references: [id])
+  items            ChecklistItem[]
+  dayTemplateSlots DayTemplateSlot[]
 
   @@index([roleId])
   @@map("checklists")
@@ -214,6 +216,40 @@ model AdminNotification {
 
   @@index([read, createdAt])
   @@map("admin_notifications")
+}
+
+// ─── Day Templates (Tagesbaukasten) ────────────────────────────
+
+model DayTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  roleId    String?
+  shiftType String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role  Role?             @relation(fields: [roleId], references: [id])
+  slots DayTemplateSlot[]
+
+  @@map("day_templates")
+}
+
+model DayTemplateSlot {
+  id                String   @id @default(uuid())
+  dayTemplateId     String
+  sortOrder         Int
+  time              String?
+  type              String
+  checklistId       String?
+  taskTitle         String?
+  taskDescription   String?
+  taskRequiresPhoto Boolean  @default(false)
+
+  dayTemplate DayTemplate @relation(fields: [dayTemplateId], references: [id], onDelete: Cascade)
+  checklist   Checklist?  @relation(fields: [checklistId], references: [id], onDelete: SetNull)
+
+  @@index([dayTemplateId, sortOrder])
+  @@map("day_template_slots")
 }
 
 // ─── Shift Templates ───────────────────────────────────────────
