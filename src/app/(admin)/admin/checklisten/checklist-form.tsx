@@ -1,7 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+type LibraryEntry = {
+  parentId: string;
+  parentTitle: string;
+  parentDescription: string | null;
+  parentRequiresPhoto: boolean;
+  checklistId: string;
+  checklistTitle: string;
+  roleName: string;
+  children: {
+    title: string;
+    description: string | null;
+    requiresPhoto: boolean;
+  }[];
+};
 
 type Role = { id: string; name: string };
 type EditorItem = {
@@ -41,6 +56,38 @@ export function ChecklistForm({
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [librarySearch, setLibrarySearch] = useState("");
+
+  useEffect(() => {
+    if (libraryOpen && library.length === 0) {
+      fetch("/api/admin/checklist-item-library")
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setLibrary)
+        .catch(() => setLibrary([]));
+    }
+  }, [libraryOpen, library.length]);
+
+  function insertFromLibrary(entry: LibraryEntry) {
+    const parentClientId = makeId();
+    const parentItem: EditorItem = {
+      clientId: parentClientId,
+      title: entry.parentTitle,
+      description: entry.parentDescription || "",
+      requiresPhoto: entry.parentRequiresPhoto,
+      parentClientId: null,
+    };
+    const childItems: EditorItem[] = entry.children.map((c) => ({
+      clientId: makeId(),
+      title: c.title,
+      description: c.description || "",
+      requiresPhoto: c.requiresPhoto,
+      parentClientId: parentClientId,
+    }));
+    setItems([...items, parentItem, ...childItems]);
+    setLibraryOpen(false);
+  }
   const [title, setTitle] = useState(checklist?.title || "");
   const [roleId, setRoleId] = useState(checklist?.roleId || (roles[0]?.id || ""));
   const [shiftType, setShiftType] = useState(checklist?.shiftType || "");
@@ -260,15 +307,24 @@ export function ChecklistForm({
 
       {/* Items */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2">
           <h2 className="text-lg font-semibold">Punkte</h2>
-          <button
-            type="button"
-            onClick={addParent}
-            className="text-sm bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg transition-colors"
-          >
-            + Hauptpunkt
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLibraryOpen(true)}
+              className="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-lg transition-colors"
+            >
+              Punkt einfügen
+            </button>
+            <button
+              type="button"
+              onClick={addParent}
+              className="text-sm bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg transition-colors"
+            >
+              + Hauptpunkt
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -432,6 +488,92 @@ export function ChecklistForm({
           </button>
         )}
       </div>
+
+      {/* Library Modal */}
+      {libraryOpen && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          onClick={() => setLibraryOpen(false)}
+        >
+          <div
+            className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+              <h3 className="text-white font-semibold">Punkt einfügen</h3>
+              <button
+                type="button"
+                onClick={() => setLibraryOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-3 border-b border-slate-700">
+              <input
+                type="text"
+                placeholder="Suche nach Titel oder Checkliste..."
+                value={librarySearch}
+                onChange={(e) => setLibrarySearch(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {library.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-6">Laden...</p>
+              ) : (
+                library
+                  .filter((e) => {
+                    if (!librarySearch.trim()) return true;
+                    const q = librarySearch.toLowerCase();
+                    return (
+                      e.parentTitle.toLowerCase().includes(q) ||
+                      e.checklistTitle.toLowerCase().includes(q) ||
+                      e.roleName.toLowerCase().includes(q) ||
+                      e.children.some((c) => c.title.toLowerCase().includes(q))
+                    );
+                  })
+                  .map((e) => (
+                    <button
+                      key={`${e.checklistId}:${e.parentId}`}
+                      type="button"
+                      onClick={() => insertFromLibrary(e)}
+                      className="w-full text-left bg-slate-900/50 hover:bg-slate-700/50 border border-slate-700 hover:border-blue-500 rounded-lg p-3 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className="font-medium text-white">{e.parentTitle}</p>
+                        <span className="text-xs text-slate-500">
+                          {e.checklistTitle}
+                          {e.roleName && ` · ${e.roleName}`}
+                        </span>
+                      </div>
+                      {e.children.length > 0 && (
+                        <ul className="mt-2 space-y-0.5">
+                          {e.children.slice(0, 8).map((c, i) => (
+                            <li key={i} className="text-xs text-slate-400 flex items-center gap-1.5">
+                              <span className="w-3 h-3 rounded border border-slate-600" />
+                              {c.title}
+                            </li>
+                          ))}
+                          {e.children.length > 8 && (
+                            <li className="text-xs text-slate-600 pl-4">+ {e.children.length - 8} weitere…</li>
+                          )}
+                        </ul>
+                      )}
+                      {e.children.length === 0 && (
+                        <p className="text-xs text-slate-500 mt-1">Keine Unterpunkte</p>
+                      )}
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
