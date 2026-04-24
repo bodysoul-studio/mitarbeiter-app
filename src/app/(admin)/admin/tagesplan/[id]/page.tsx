@@ -55,7 +55,8 @@ export default async function EditTagesplanPage({
       taskRequiresPhoto: s.taskRequiresPhoto,
       courseRoomId: s.courseRoomId,
       leadMinutes: s.leadMinutes,
-      anchor: ((s.anchor as "first" | "last" | "each" | null) || "fixed") as "fixed" | "first" | "last" | "each",
+      anchor: ((s.anchor as "first" | "last" | "each" | "recurring" | null) || "fixed") as "fixed" | "first" | "last" | "each" | "recurring",
+      repeatTimes: s.repeatTimes || "",
     })),
   };
 

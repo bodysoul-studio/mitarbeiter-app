@@ -30,7 +30,7 @@ export type ChecklistRef = {
 };
 export type CourseRoomRef = { id: string; name: string; color: string };
 
-export type Anchor = "fixed" | "first" | "last" | "each";
+export type Anchor = "fixed" | "first" | "last" | "each" | "recurring";
 
 export type Slot = {
   clientId: string;
@@ -44,6 +44,7 @@ export type Slot = {
   courseRoomId: string | null;
   leadMinutes: number;
   anchor: Anchor;
+  repeatTimes: string;
 };
 
 export type Template = {
@@ -134,6 +135,7 @@ function SortableSlot({
               className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
             >
               <option value="fixed">Feste Zeit</option>
+              {slot.type === "task" && <option value="recurring">Mehrere Zeiten</option>}
               <option value="first">Vor erstem Kurs</option>
               <option value="last">Nach letztem Kurs</option>
               {slot.type === "task" && <option value="each">Pro Kurs</option>}
@@ -148,7 +150,17 @@ function SortableSlot({
               />
             )}
 
-            {slot.anchor !== "fixed" && (
+            {slot.anchor === "recurring" && (
+              <input
+                type="text"
+                value={slot.repeatTimes}
+                onChange={(e) => onEdit((s) => ({ ...s, repeatTimes: e.target.value }))}
+                placeholder="10:00, 14:00, 18:00"
+                className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500 flex-1 min-w-[180px]"
+              />
+            )}
+
+            {slot.anchor !== "fixed" && slot.anchor !== "recurring" && (
               <>
                 <select
                   value={slot.courseRoomId || ""}
@@ -308,6 +320,7 @@ export function DayTemplateBuilder({
         courseRoomId: null,
         leadMinutes: 15,
         anchor: "fixed",
+        repeatTimes: "",
       },
     ]);
   }
@@ -326,6 +339,7 @@ export function DayTemplateBuilder({
         courseRoomId: presetRoomId || null,
         leadMinutes: 15,
         anchor: presetRoomId ? "each" : "fixed",
+        repeatTimes: "",
       },
     ]);
   }
@@ -351,9 +365,10 @@ export function DayTemplateBuilder({
         taskTitle: s.taskTitle || null,
         taskDescription: s.taskDescription || null,
         taskRequiresPhoto: s.taskRequiresPhoto,
-        courseRoomId: s.anchor === "fixed" ? null : s.courseRoomId || null,
+        courseRoomId: s.anchor === "fixed" || s.anchor === "recurring" ? null : s.courseRoomId || null,
         leadMinutes: s.leadMinutes ?? 15,
         anchor: s.anchor === "fixed" ? null : s.anchor,
+        repeatTimes: s.anchor === "recurring" ? s.repeatTimes || null : null,
       })),
     };
 
@@ -418,6 +433,39 @@ export function DayTemplateBuilder({
       const roomName = s.courseRoomId
         ? courseRooms.find((r) => r.id === s.courseRoomId)?.name || "Raum"
         : "allen Kursen";
+
+      // Recurring: multiple fixed times (tasks only)
+      if (s.anchor === "recurring" && s.type === "task") {
+        const times = (s.repeatTimes || "")
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => /^\d{1,2}:\d{2}$/.test(t));
+        if (times.length === 0) {
+          out.push({
+            key: `${s.clientId}:empty`,
+            time: null,
+            type: "task",
+            title: `${s.taskTitle || "Aufgabe"} — keine Zeiten definiert`,
+            badge: "Mehrere Zeiten",
+            badgeColor: "bg-teal-500/15 text-teal-400",
+            isEmpty: true,
+          });
+        } else {
+          for (const t of times) {
+            out.push({
+              key: `${s.clientId}:t:${t}`,
+              time: t,
+              type: "task",
+              title: s.taskTitle || "Aufgabe",
+              description: s.taskDescription || undefined,
+              badge: "Wiederkehrend",
+              badgeColor: "bg-teal-500/15 text-teal-400",
+              requiresPhoto: s.taskRequiresPhoto,
+            });
+          }
+        }
+        continue;
+      }
 
       // Per-course expansion (tasks only)
       if (s.anchor === "each" && s.type === "task") {

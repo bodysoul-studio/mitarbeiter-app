@@ -128,6 +128,15 @@ export default async function SchichtPage() {
           expandedSlotIds.push(`${s.id}:${offer.id}`);
         }
       }
+      if (s.anchor === "recurring" && s.repeatTimes) {
+        const times = s.repeatTimes
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => /^\d{1,2}:\d{2}$/.test(t));
+        for (const t of times) {
+          expandedSlotIds.push(`${s.id}:t:${t}`);
+        }
+      }
     }
 
     const [completedItems, completedSlots] = await Promise.all([
@@ -201,6 +210,49 @@ export default async function SchichtPage() {
     }
 
     for (const s of dayTemplate.slots) {
+      // "recurring" anchor: multiple fixed times (tasks only)
+      if (s.anchor === "recurring" && s.type === "task") {
+        const times = (s.repeatTimes || "")
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => /^\d{1,2}:\d{2}$/.test(t));
+        if (times.length === 0) {
+          builtSlots.push({
+            id: `${s.id}:empty`,
+            time: null,
+            type: "task",
+            checklist: null,
+            task: {
+              title: `${s.taskTitle || "Aufgabe"} — keine Zeiten definiert`,
+              description: null,
+              requiresPhoto: false,
+              completed: false,
+              photoUrl: null,
+              completedByName: null,
+            },
+          });
+        } else {
+          for (const t of times) {
+            const slotKey = `${s.id}:t:${t}`;
+            builtSlots.push({
+              id: slotKey,
+              time: t,
+              type: "task",
+              checklist: null,
+              task: {
+                title: s.taskTitle || "Aufgabe",
+                description: s.taskDescription,
+                requiresPhoto: s.taskRequiresPhoto,
+                completed: !!completedSlotMap[slotKey],
+                photoUrl: completedSlotMap[slotKey]?.photoUrl ?? null,
+                completedByName: completedSlotMap[slotKey]?.completedByName ?? null,
+              },
+            });
+          }
+        }
+        continue;
+      }
+
       // "each" anchor: expand per course (tasks only)
       if (s.anchor === "each" && s.type === "task") {
         const matching = offersFor(s.courseRoomId);

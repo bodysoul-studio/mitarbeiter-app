@@ -13,6 +13,7 @@ const slotSchema = z.object({
   courseRoomId: z.string().optional().nullable(),
   leadMinutes: z.number().optional(),
   anchor: z.string().optional().nullable(),
+  repeatTimes: z.string().optional().nullable(),
 });
 
 const updateSchema = z.object({
@@ -86,6 +87,7 @@ export async function PUT(
             courseRoomId: s.courseRoomId || null,
             leadMinutes: s.leadMinutes ?? 15,
             anchor: s.anchor || null,
+            repeatTimes: s.repeatTimes || null,
           })),
         },
       },
