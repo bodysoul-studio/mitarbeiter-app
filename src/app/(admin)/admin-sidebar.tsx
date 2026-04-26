@@ -12,6 +12,7 @@ type NavGroup = {
 
 const navGroups: (NavGroup | { href: string; label: string; icon: string })[] = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
+  { href: "/admin/tagesuebersicht", label: "Tagesübersicht", icon: "🗓️" },
   {
     label: "Inhalte",
     icon: "📋",
