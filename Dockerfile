@@ -28,10 +28,6 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-# Schema + migrations and Prisma CLI (needed for `prisma migrate deploy` at startup)
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 RUN mkdir -p /app/public/uploads
 RUN chown -R nextjs:nodejs /app/public/uploads
@@ -42,6 +38,6 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Apply pending migrations on startup, then run server
-# (use direct node call — `npx`/`prisma` symlinks are not in the standalone bundle)
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
+# Migrations are applied locally before push (`prisma migrate dev` against
+# Neon), so by the time Render redeploys the schema is already up to date.
+CMD ["node", "server.js"]
