@@ -11,6 +11,8 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Bust any cached client that might have been generated against an older schema
+RUN rm -rf node_modules/.prisma
 RUN npx prisma generate
 RUN npm run build
 
@@ -41,4 +43,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Apply pending migrations on startup, then run server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+# (use direct node call — `npx`/`prisma` symlinks are not in the standalone bundle)
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
