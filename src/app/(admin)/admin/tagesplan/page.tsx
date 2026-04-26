@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { DeleteTemplateButton } from "./delete-button";
+import { DuplicateTemplateButton } from "./duplicate-button";
 
 const SHIFT_LABELS: Record<string, string> = {
   frueh: "Frühschicht",
@@ -74,6 +75,7 @@ export default async function TagesplanPage() {
                 >
                   Bearbeiten
                 </Link>
+                <DuplicateTemplateButton id={t.id} />
                 <DeleteTemplateButton id={t.id} name={t.name} />
               </div>
             </div>
