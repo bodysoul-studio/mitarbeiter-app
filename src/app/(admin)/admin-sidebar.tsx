@@ -18,6 +18,7 @@ const navGroups: (NavGroup | { href: string; label: string; icon: string })[] = 
     icon: "📋",
     items: [
       { href: "/admin/checklisten", label: "Checklisten" },
+      { href: "/admin/vorschlaege", label: "Vorschläge" },
       { href: "/admin/tagesplan", label: "Tagesbaukasten" },
       { href: "/admin/kursraeume", label: "Kursräume" },
       { href: "/admin/aufgaben", label: "Aufgaben" },

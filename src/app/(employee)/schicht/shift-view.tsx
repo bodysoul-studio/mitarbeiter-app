@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { ChecklistWithItems } from "@/lib/time-utils";
+import { SuggestForm } from "./suggest-form";
 
 type TemplateSlot = {
   id: string;
@@ -591,6 +592,10 @@ export function ShiftView({ checklists: initial, template, employeeId, employeeN
                           </div>
                         );
                       })}
+                      <SuggestForm
+                        checklistId={cl.id}
+                        parents={parentsOfCl.map((p) => ({ id: p.id, title: p.title }))}
+                      />
                     </div>
                   )}
                 </div>
@@ -887,6 +892,10 @@ export function ShiftView({ checklists: initial, template, employeeId, employeeN
                     </div>
                   );
                 })}
+                <SuggestForm
+                  checklistId={cl.id}
+                  parents={parentsOfCl.map((p) => ({ id: p.id, title: p.title }))}
+                />
               </div>
             )}
           </div>

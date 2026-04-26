@@ -30,6 +30,7 @@ model Employee {
   swapsAccepted     ShiftSwapRequest[] @relation("SwapAccepted")
   weeklySchedule    EmployeeSchedule[]
   completedSlots    CompletedSlotTask[]
+  suggestions       ChecklistSuggestion[]
 
   @@map("employees")
 }
@@ -80,6 +81,7 @@ model Checklist {
   role             Role              @relation(fields: [roleId], references: [id])
   items            ChecklistItem[]
   dayTemplateSlots DayTemplateSlot[]
+  suggestions      ChecklistSuggestion[]
 
   @@index([roleId])
   @@map("checklists")
@@ -102,10 +104,31 @@ model ChecklistItem {
   parent         ChecklistItem?  @relation("ItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
   children       ChecklistItem[] @relation("ItemChildren")
   completedItems CompletedItem[]
+  suggestions    ChecklistSuggestion[]
 
   @@index([checklistId])
   @@index([parentId])
   @@map("checklist_items")
+}
+
+// ─── Checklist Suggestions ─────────────────────────────────────
+
+model ChecklistSuggestion {
+  id            String   @id @default(uuid())
+  checklistId   String
+  parentItemId  String?
+  employeeId    String
+  title         String
+  description   String?
+  createdAt     DateTime @default(now())
+
+  checklist  Checklist      @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  parentItem ChecklistItem? @relation(fields: [parentItemId], references: [id], onDelete: SetNull)
+  employee   Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+  @@index([createdAt])
+  @@map("checklist_suggestions")
 }
 
 // ─── Completed Items ───────────────────────────────────────────
