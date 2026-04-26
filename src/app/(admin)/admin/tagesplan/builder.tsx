@@ -612,6 +612,34 @@ export function DayTemplateBuilder({
     return filtered;
   }, [slots, bsportOffers, roomActivities, checklists, courseRooms, shiftType]);
 
+  // Per-course-room summary for the preview date
+  const previewRoomSummary = useMemo(() => {
+    const window = getShiftWindow(shiftType);
+    const filtered = bsportOffers.filter((o) => o.startTime >= window.start && o.startTime < window.end);
+    const seen = new Set<string>();
+    for (const s of slots) {
+      if (s.courseRoomId) seen.add(s.courseRoomId);
+    }
+    return Array.from(seen)
+      .map((id) => {
+        const room = courseRooms.find((r) => r.id === id);
+        if (!room) return null;
+        const actNames = roomActivities[id] || [];
+        const matching = filtered
+          .filter((o) => actNames.includes(o.activityName))
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        return {
+          id: room.id,
+          name: room.name,
+          color: room.color,
+          count: matching.length,
+          times: matching.map((o) => o.startTime),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [slots, bsportOffers, roomActivities, courseRooms, shiftType]);
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr_360px] gap-4">
       {/* Left: Settings + Library */}
@@ -846,6 +874,35 @@ export function DayTemplateBuilder({
                 <h3 className="text-sm font-bold text-white">{name || "Ohne Name"}</h3>
                 <p className="text-[10px] text-slate-400">{previewSlots.length} Blöcke</p>
               </div>
+
+              {previewRoomSummary.length > 0 && (
+                <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-2 space-y-1.5">
+                  <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Kurse heute</p>
+                  <div className="flex flex-wrap gap-1">
+                    {previewRoomSummary.map((r) => {
+                      const has = r.count > 0;
+                      return (
+                        <div
+                          key={r.id}
+                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${
+                            has ? "bg-slate-900 border border-slate-700" : "bg-slate-900/40 border border-slate-800 opacity-70"
+                          }`}
+                          title={has ? r.times.join(", ") : "Keine Kurse heute"}
+                        >
+                          <span
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: r.color || "#64748b" }}
+                          />
+                          <span className={has ? "text-white font-medium" : "text-slate-500 line-through"}>{r.name}</span>
+                          <span className={has ? "text-slate-400" : "text-slate-600"}>
+                            {has ? r.count : "0"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {previewSlots.length === 0 ? (
                 <p className="text-slate-500 text-center py-6 text-xs">Keine Blöcke</p>

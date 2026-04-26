@@ -105,6 +105,14 @@ export default async function SchichtPage() {
     slots: BuiltSlot[];
   } | null = null;
 
+  let courseRoomSummary: {
+    id: string;
+    name: string;
+    color: string | null;
+    count: number;
+    times: string[];
+  }[] = [];
+
   if (dayTemplate) {
     // Collect completion lookups for checklist items + fixed slot tasks
     const allItemIds = dayTemplate.slots
@@ -201,6 +209,35 @@ export default async function SchichtPage() {
       return filteredOffers
         .filter((o) => actNames.includes(o.activityName))
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+
+    // Per-course-room summary for the shift window
+    {
+      const seen = new Map<string, { id: string; name: string; color: string | null; activities: string[] }>();
+      for (const s of dayTemplate.slots) {
+        if (s.courseRoomId && s.courseRoom && !seen.has(s.courseRoomId)) {
+          seen.set(s.courseRoomId, {
+            id: s.courseRoom.id,
+            name: s.courseRoom.name,
+            color: s.courseRoom.color,
+            activities: s.courseRoom.activities.map((a) => a.activityName),
+          });
+        }
+      }
+      courseRoomSummary = Array.from(seen.values())
+        .map((r) => {
+          const matching = filteredOffers
+            .filter((o) => r.activities.includes(o.activityName))
+            .sort((a, b) => a.startTime.localeCompare(b.startTime));
+          return {
+            id: r.id,
+            name: r.name,
+            color: r.color,
+            count: matching.length,
+            times: matching.map((o) => o.startTime),
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
     }
 
     function getEndTime(startTime: string, durationMin: number) {
@@ -461,6 +498,7 @@ export default async function SchichtPage() {
       employeeId={employee.id}
       employeeName={employee.name}
       today={today}
+      courseRoomSummary={courseRoomSummary}
     />
   );
 }

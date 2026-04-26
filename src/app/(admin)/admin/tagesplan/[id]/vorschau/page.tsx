@@ -67,6 +67,33 @@ export default async function VorschauPage({
     (o) => o.startTime >= shiftWindow.start && o.startTime < shiftWindow.end
   );
 
+  // Per-course-room summary
+  const roomSeen = new Map<string, { id: string; name: string; color: string | null; activities: string[] }>();
+  for (const s of template.slots) {
+    if (s.courseRoomId && s.courseRoom && !roomSeen.has(s.courseRoomId)) {
+      roomSeen.set(s.courseRoomId, {
+        id: s.courseRoom.id,
+        name: s.courseRoom.name,
+        color: s.courseRoom.color,
+        activities: s.courseRoom.activities.map((a) => a.activityName),
+      });
+    }
+  }
+  const courseRoomSummary = Array.from(roomSeen.values())
+    .map((r) => {
+      const matching = offers
+        .filter((o) => r.activities.includes(o.activityName))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      return {
+        id: r.id,
+        name: r.name,
+        color: r.color,
+        count: matching.length,
+        times: matching.map((o) => o.startTime),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   type PreviewSlot = {
     id: string;
     time: string | null;
@@ -264,6 +291,35 @@ export default async function VorschauPage({
           </div>
 
           <p className="text-xs text-slate-500 text-center">Aktuelle Zeit: (live beim Mitarbeiter)</p>
+
+          {courseRoomSummary.length > 0 && (
+            <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Kurse heute</p>
+              <div className="flex flex-wrap gap-1.5">
+                {courseRoomSummary.map((r) => {
+                  const has = r.count > 0;
+                  return (
+                    <div
+                      key={r.id}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] ${
+                        has ? "bg-slate-900 border border-slate-700" : "bg-slate-900/40 border border-slate-800 opacity-70"
+                      }`}
+                      title={has ? r.times.join(", ") : "Keine Kurse heute"}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: r.color || "#64748b" }}
+                      />
+                      <span className={has ? "text-white font-medium" : "text-slate-500 line-through"}>{r.name}</span>
+                      <span className={has ? "text-slate-400" : "text-slate-600"}>
+                        {has ? `${r.count} Kurs${r.count === 1 ? "" : "e"}` : "keine"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             {builtSlots.length === 0 ? (

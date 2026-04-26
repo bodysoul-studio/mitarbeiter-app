@@ -42,12 +42,21 @@ type TemplateData = {
   slots: TemplateSlot[];
 };
 
+type CourseRoomSummary = {
+  id: string;
+  name: string;
+  color: string | null;
+  count: number;
+  times: string[];
+};
+
 type Props = {
   checklists: ChecklistWithItems[];
   template: TemplateData | null;
   employeeId: string;
   employeeName: string;
   today: string;
+  courseRoomSummary?: CourseRoomSummary[];
 };
 
 function getInitials(name: string): string {
@@ -68,7 +77,7 @@ function getCurrentTime() {
   });
 }
 
-export function ShiftView({ checklists: initial, template, employeeId, employeeName, today }: Props) {
+export function ShiftView({ checklists: initial, template, employeeId, employeeName, today, courseRoomSummary }: Props) {
   const [checklists, setChecklists] = useState(initial);
   const [tpl, setTpl] = useState<TemplateData | null>(template);
   const [currentTime, setCurrentTime] = useState(getCurrentTime);
@@ -391,6 +400,36 @@ export function ShiftView({ checklists: initial, template, employeeId, employeeN
         </div>
 
         <p className="text-center text-slate-400 text-sm">Aktuelle Zeit: {currentTime}</p>
+
+        {/* Course room summary */}
+        {courseRoomSummary && courseRoomSummary.length > 0 && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Kurse heute</p>
+            <div className="flex flex-wrap gap-2">
+              {courseRoomSummary.map((r) => {
+                const has = r.count > 0;
+                return (
+                  <div
+                    key={r.id}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${
+                      has ? "bg-slate-900 border border-slate-700" : "bg-slate-900/40 border border-slate-800 opacity-70"
+                    }`}
+                    title={has ? r.times.join(", ") : "Keine Kurse heute"}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: r.color || "#64748b" }}
+                    />
+                    <span className={has ? "text-white font-medium" : "text-slate-500 line-through"}>{r.name}</span>
+                    <span className={has ? "text-slate-400" : "text-slate-600"}>
+                      {has ? `${r.count} Kurs${r.count === 1 ? "" : "e"}` : "keine"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Slots */}
         <div className="space-y-2">
